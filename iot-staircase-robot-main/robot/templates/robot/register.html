@@ -1,0 +1,92 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Register - IoT Robot Controller</title>
+    <link rel="stylesheet" href="{% static 'robot/css/style.css' %}">
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+</head>
+<body>
+<div class="page-view active">
+    <div class="split-login-container">
+        <div class="login-left-panel">
+            <div class="left-panel-background"></div>
+            <div class="left-panel-content">
+                <div class="brand-showcase">
+                    <div class="robot-illustration">
+                        <div class="robot-icon-large">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                    </div>
+                    <div class="brand-content">
+                        <h1 class="brand-title-large">Create your account</h1>
+                        <p class="brand-tagline">Access the robot control center</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="login-right-panel">
+            <div class="form-container">
+                <div class="form-header">
+                    <h2 class="welcome-title">Sign Up</h2>
+                    <p class="welcome-subtitle">Use a unique username and a valid email</p>
+                </div>
+                <form class="modern-login-form" method="post" novalidate>
+                    {% csrf_token %}
+                    <div class="input-group">
+                        <div class="input-container">
+                            <input type="text" name="username" id="username" class="modern-input" placeholder=" " required>
+                            <label for="username" class="floating-label">Username</label>
+                            <div class="input-icon"><i class="fas fa-user"></i></div>
+                            <div class="input-border-effect"></div>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <div class="input-container">
+                            <input type="email" name="email" id="email" class="modern-input" placeholder=" " required>
+                            <label for="email" class="floating-label">Email</label>
+                            <div class="input-icon"><i class="fas fa-envelope"></i></div>
+                            <div class="input-border-effect"></div>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <div class="input-container">
+                            <input type="password" name="password" id="password" class="modern-input" placeholder=" " required>
+                            <label for="password" class="floating-label">Password</label>
+                            <div class="input-icon"><i class="fas fa-lock"></i></div>
+                            <div class="input-border-effect"></div>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <div class="input-container">
+                            <input type="password" name="confirm_password" id="confirm_password" class="modern-input" placeholder=" " required>
+                            <label for="confirm_password" class="floating-label">Confirm Password</label>
+                            <div class="input-icon"><i class="fas fa-lock"></i></div>
+                            <div class="input-border-effect"></div>
+                        </div>
+                    </div>
+                    <button type="submit" class="modern-submit-btn">
+                        <div class="btn-content">
+                            <span class="btn-text">Create Account</span>
+                            <div class="btn-gradient-overlay"></div>
+                        </div>
+                    </button>
+                    <div class="form-footer-link">
+                        <span>Already have an account?</span> <a href="{% url 'login' %}">Sign in</a>
+                    </div>
+                </form>
+                {% if messages %}
+                <ul class="messages">
+                    {% for message in messages %}
+                    <li>{{ message }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+<script src="{% static 'robot/js/app.js' %}"></script>
+</body>
+</html>

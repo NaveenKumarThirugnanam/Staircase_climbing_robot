@@ -1,0 +1,474 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern IoT Robot Controller</title>
+    <link rel="stylesheet" href="{% static 'robot/css/style.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <!-- Advanced Loading Screen -->
+    <div id="loadingScreen" class="advanced-loading-screen active">
+        <div class="loading-background-effects">
+            <div class="particle-system">
+                <div class="particle"></div>
+                <div class="particle"></div>
+                <div class="particle"></div>
+                <div class="particle"></div>
+                <div class="particle"></div>
+                <div class="particle"></div>
+                <div class="particle"></div>
+                <div class="particle"></div>
+                <div class="particle"></div>
+                <div class="particle"></div>
+            </div>
+            <div class="wave-animation">
+                <div class="wave wave-1"></div>
+                <div class="wave wave-2"></div>
+                <div class="wave wave-3"></div>
+            </div>
+        </div>
+        
+        <div class="loading-content-center">
+            <div class="morphing-robot-loader">
+                <div class="robot-morph-container">
+                    <div class="morphing-robot">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <div class="morph-rings">
+                        <div class="ring ring-1"></div>
+                        <div class="ring ring-2"></div>
+                        <div class="ring ring-3"></div>
+                    </div>
+                    <div class="circuit-pattern">
+                        <div class="circuit-line c-line-1"></div>
+                        <div class="circuit-line c-line-2"></div>
+                        <div class="circuit-line c-line-3"></div>
+                        <div class="circuit-line c-line-4"></div>
+                    </div>
+                </div>
+                
+                <h1 class="loading-brand-title">IoT Robot Controller</h1>
+                <p class="loading-subtitle" id="loadingMessage">Initializing connection...</p>
+            </div>
+            
+            <div class="advanced-progress-system">
+                <div class="circular-progress">
+                    <div class="progress-ring">
+                        <svg width="120" height="120">
+                            <circle cx="60" cy="60" r="54" class="progress-ring-bg"></circle>
+                            <circle cx="60" cy="60" r="54" class="progress-ring-fill" id="progressRing"></circle>
+                        </svg>
+                        <div class="progress-percentage" id="progressPercentage">0%</div>
+                    </div>
+                </div>
+                
+                <div class="step-indicators">
+                    <div class="step-item" id="step1">
+                        <div class="step-circle">
+                            <i class="fas fa-plug"></i>
+                            <div class="step-check hidden"><i class="fas fa-check"></i></div>
+                        </div>
+                        <span>Connecting</span>
+                    </div>
+                    <div class="step-item" id="step2">
+                        <div class="step-circle">
+                            <i class="fas fa-key"></i>
+                            <div class="step-check hidden"><i class="fas fa-check"></i></div>
+                        </div>
+                        <span>Authenticating</span>
+                    </div>
+                    <div class="step-item" id="step3">
+                        <div class="step-circle">
+                            <i class="fas fa-download"></i>
+                            <div class="step-check hidden"><i class="fas fa-check"></i></div>
+                        </div>
+                        <span>Loading Dashboard</span>
+                    </div>
+                    <div class="step-item" id="step4">
+                        <div class="step-circle">
+                            <i class="fas fa-rocket"></i>
+                            <div class="step-check hidden"><i class="fas fa-check"></i></div>
+                        </div>
+                        <span>Ready</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Controller Page -->
+    <div id="controllerPage" class="page-view">
+        <!-- Header -->
+        <header class="modern-header">
+            <div class="header-content">
+                <div class="header-left">
+                    <div class="brand-logo">
+                        <i class="fas fa-robot"></i>
+                        <span class="logo-text">IoT Robot Controller</span>
+                    </div>
+                    <div class="connection-status">
+                        <div class="status-indicator connected">
+                            <div class="status-dot"></div>
+                            <span>Connected</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="header-right">
+                    <div class="nav-menu">
+                        <a class="nav-item active" id="controllerNavBtn" href="{% url 'robot' %}?view=controller">
+                            <i class="fas fa-gamepad"></i>
+                            <span>Controller</span>
+                        </a>
+                        <a class="nav-item" id="dashboardNavBtn" href="{% url 'robot' %}?view=dashboard">
+                            <i class="fas fa-tachometer-alt"></i>
+                            <span>Dashboard</span>
+                        </a>
+                    </div>
+                    
+                    <div class="profile-dropdown" id="profileDropdown">
+                        <button class="profile-btn" id="profileBtn">
+                            <div class="profile-avatar">{{ request.user.username|slice:":1"|upper }}</div>
+                            <div class="profile-info">
+                                <span class="profile-name">{{ request.user.get_full_name|default:request.user.username }}</span>
+                                <span class="profile-email">{{ request.user.email }}</span>
+                            </div>
+                            <i class="fas fa-chevron-down profile-arrow"></i>
+                        </button>
+                        
+                        <div class="dropdown-menu" id="dropdownMenu">
+                            <a class="dropdown-item" href="{% url 'profile' %}">
+                                <i class="fas fa-user"></i>
+                                <span>Profile</span>
+                            </a>
+                            <a class="dropdown-item" href="{% url 'password_change' %}">
+                                <i class="fas fa-key"></i>
+                                <span>Change Password</span>
+                            </a>
+                            <a class="dropdown-item" href="{% url 'settings' %}">
+                                <i class="fas fa-cog"></i>
+                                <span>Settings</span>
+                            </a>
+                            <div class="dropdown-divider"></div>
+                            <a class="dropdown-item logout" id="logoutBtn" href="{% url 'logout' %}">
+                                <i class="fas fa-sign-out-alt"></i>
+                                <span>Sign Out</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Controller Content -->
+        <main class="controller-main">
+            <div class="controller-grid">
+                <!-- Camera Feed Section -->
+                <section class="camera-section">
+                    <div class="section-header">
+                        <h2>Live Camera Feed</h2>
+                        <div class="camera-controls">
+                            <button class="control-btn"><i class="fas fa-play"></i></button>
+                            <button class="control-btn"><i class="fas fa-volume-up"></i></button>
+                            <button class="control-btn"><i class="fas fa-refresh"></i></button>
+                            <button class="control-btn"><i class="fas fa-expand"></i></button>
+                        </div>
+                    </div>
+                    
+                    <div class="camera-feed">
+                        <div class="video-container">
+                            <div class="video-overlay">
+                                <div class="live-indicator">
+                                    <div class="live-dot"></div>
+                                    <span>LIVE</span>
+                                </div>
+                                <div class="timestamp" id="timestamp">6:20 PM</div>
+                                <div class="video-quality">1080p</div>
+                                <div class="signal-strength">
+                                    <i class="fas fa-wifi"></i>
+                                    <span id="signalStrength">95%</span>
+                                </div>
+                            </div>
+                            
+                            <div class="video-content">
+                                <div class="crosshair">
+                                    <div class="crosshair-h"></div>
+                                    <div class="crosshair-v"></div>
+                                </div>
+                                <div class="moving-target" id="movingTarget"></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Sidebar -->
+                <aside class="controller-sidebar">
+                    <!-- Battery Section -->
+                    <section class="battery-section">
+                        <h3>Battery Status</h3>
+                        <div class="battery-display">
+                            <div class="battery-icon">
+                                <div class="battery-level" id="batteryLevel" style="width: 85%"></div>
+                                <div class="battery-tip"></div>
+                            </div>
+                            <div class="battery-info">
+                                <div class="battery-percentage" id="batteryPercentage">85%</div>
+                                <div class="battery-status">Good</div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Robot Status -->
+                    <section class="status-section">
+                        <h3>Robot Status</h3>
+                        <div class="status-grid">
+                            <div class="status-item">
+                                <label>Position X:</label>
+                                <span class="status-value" id="positionX">0.00</span>
+                            </div>
+                            <div class="status-item">
+                                <label>Position Y:</label>
+                                <span class="status-value" id="positionY">0.00</span>
+                            </div>
+                            <div class="status-item">
+                                <label>Camera X:</label>
+                                <span class="status-value" id="cameraX">0.00</span>
+                            </div>
+                            <div class="status-item">
+                                <label>Camera Y:</label>
+                                <span class="status-value" id="cameraY">0.00</span>
+                            </div>
+                        </div>
+                    </section>
+                </aside>
+
+                <!-- Controls Section - Side by Side Joysticks -->
+                <section class="controls-section">
+                    <h3>Robot Controls</h3>
+                    <div class="joystick-container">
+                        <!-- Robot Movement Joystick -->
+                        <div class="joystick-wrapper">
+                            <h4>Robot Movement</h4>
+                            <div class="joystick" id="robotJoystick">
+                                <div class="joystick-base">
+                                    <div class="joystick-directions">
+                                        <div class="direction up"><i class="fas fa-arrow-up"></i></div>
+                                        <div class="direction down"><i class="fas fa-arrow-down"></i></div>
+                                        <div class="direction left"><i class="fas fa-arrow-left"></i></div>
+                                        <div class="direction right"><i class="fas fa-arrow-right"></i></div>
+                                    </div>
+                                    <div class="joystick-knob" id="robotKnob"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Camera Control Joystick -->
+                        <div class="joystick-wrapper">
+                            <h4>Camera Control</h4>
+                            <div class="joystick" id="cameraJoystick">
+                                <div class="joystick-base">
+                                    <div class="joystick-directions">
+                                        <div class="direction up"><i class="fas fa-arrow-up"></i></div>
+                                        <div class="direction down"><i class="fas fa-arrow-down"></i></div>
+                                        <div class="direction left"><i class="fas fa-arrow-left"></i></div>
+                                        <div class="direction right"><i class="fas fa-arrow-right"></i></div>
+                                    </div>
+                                    <div class="joystick-knob" id="cameraKnob"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Dashboard Page -->
+    <div id="dashboardPage" class="page-view">
+        <!-- Dashboard Header -->
+        <header class="dashboard-header">
+            <div class="header-content">
+                <div class="header-left">
+                    <button class="back-btn" id="backToControllerBtn">
+                        <i class="fas fa-arrow-left"></i>
+                        <span>Back to Controller</span>
+                    </button>
+                    <div class="page-title">
+                        <i class="fas fa-heartbeat"></i>
+                        <h1>Robot Dashboard</h1>
+                    </div>
+                </div>
+                
+                <div class="header-right">
+                    <div class="profile-dropdown" id="profileDropdownDashboard">
+                        <button class="profile-btn" id="profileBtnDashboard">
+                            <div class="profile-avatar">{{ request.user.username|slice:":1"|upper }}</div>
+                        </button>
+                        
+                        <div class="dropdown-menu" id="dropdownMenuDashboard">
+                            <a class="dropdown-item" href="{% url 'profile' %}">
+                                <i class="fas fa-user"></i>
+                                <span>Profile</span>
+                            </a>
+                            <a class="dropdown-item" href="{% url 'settings' %}">
+                                <i class="fas fa-cog"></i>
+                                <span>Settings</span>
+                            </a>
+                            <div class="dropdown-divider"></div>
+                            <a class="dropdown-item logout" id="logoutBtnDashboard" href="{% url 'logout' %}">
+                                <i class="fas fa-sign-out-alt"></i>
+                                <span>Sign Out</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Dashboard Main Content -->
+        <main class="dashboard-main">
+            <!-- Metrics Cards Grid -->
+            <section class="metrics-grid">
+                <div class="metric-card battery-card">
+                    <div class="metric-icon">
+                        <i class="fas fa-battery-three-quarters"></i>
+                    </div>
+                    <div class="metric-content">
+                        <div class="metric-value" id="metricBattery">85%</div>
+                        <div class="metric-label">Battery Level</div>
+                    </div>
+                </div>
+
+                <div class="metric-card cpu-card">
+                    <div class="metric-icon">
+                        <i class="fas fa-microchip"></i>
+                    </div>
+                    <div class="metric-content">
+                        <div class="metric-value" id="metricCpu">38%</div>
+                        <div class="metric-label">CPU Usage</div>
+                    </div>
+                </div>
+
+                <div class="metric-card temperature-card">
+                    <div class="metric-icon">
+                        <i class="fas fa-thermometer-half"></i>
+                    </div>
+                    <div class="metric-content">
+                        <div class="metric-value" id="metricTemperature">41°C</div>
+                        <div class="metric-label">Temperature</div>
+                    </div>
+                </div>
+
+                <div class="metric-card signal-card">
+                    <div class="metric-icon">
+                        <i class="fas fa-wifi"></i>
+                    </div>
+                    <div class="metric-content">
+                        <div class="metric-value" id="metricSignal">93%</div>
+                        <div class="metric-label">Signal Strength</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab Section -->
+            <section class="tab-section">
+                <div class="tab-nav">
+                    <button class="tab-btn active" data-tab="battery">Battery & Power</button>
+                    <button class="tab-btn" data-tab="performance">Performance</button>
+                    <button class="tab-btn" data-tab="network">Network</button>
+                </div>
+
+                <!-- Tab Content -->
+                <div class="tab-content">
+                    <div class="tab-panel active" id="battery-panel">
+                        <div class="chart-section">
+                            <h3>Battery Level Over Time</h3>
+                            <div class="chart-container" style="position: relative; height: 400px;">
+                                <canvas id="batteryChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-panel" id="performance-panel">
+                        <div class="performance-metrics">
+                            <h3>Performance Metrics</h3>
+                            <div class="metric-rows">
+                                <div class="metric-row">
+                                    <span class="metric-name">CPU Usage</span>
+                                    <div class="metric-bar">
+                                        <div class="metric-fill" style="width: 38%; background: #1FB8CD;"></div>
+                                    </div>
+                                    <span class="metric-percent">38%</span>
+                                </div>
+                                <div class="metric-row">
+                                    <span class="metric-name">Memory Usage</span>
+                                    <div class="metric-bar">
+                                        <div class="metric-fill" style="width: 64%; background: #B4413C;"></div>
+                                    </div>
+                                    <span class="metric-percent">64%</span>
+                                </div>
+                                <div class="metric-row">
+                                    <span class="metric-name">Storage</span>
+                                    <div class="metric-bar">
+                                        <div class="metric-fill" style="width: 23%; background: #5D878F;"></div>
+                                    </div>
+                                    <span class="metric-percent">23%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-panel" id="network-panel">
+                        <div class="network-info">
+                            <h3>Network Status</h3>
+                            <div class="network-stats">
+                                <div class="network-stat">
+                                    <div class="stat-icon">
+                                        <i class="fas fa-wifi"></i>
+                                    </div>
+                                    <div class="stat-info">
+                                        <div class="stat-label">Signal Strength</div>
+                                        <div class="stat-value">93%</div>
+                                    </div>
+                                </div>
+                                <div class="network-stat">
+                                    <div class="stat-icon">
+                                        <i class="fas fa-download"></i>
+                                    </div>
+                                    <div class="stat-info">
+                                        <div class="stat-label">Download Speed</div>
+                                        <div class="stat-value">125 Mbps</div>
+                                    </div>
+                                </div>
+                                <div class="network-stat">
+                                    <div class="stat-icon">
+                                        <i class="fas fa-upload"></i>
+                                    </div>
+                                    <div class="stat-info">
+                                        <div class="stat-label">Upload Speed</div>
+                                        <div class="stat-value">32 Mbps</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast-notification hidden" id="toastNotification">
+        <div class="toast-content">
+            <i class="toast-icon"></i>
+            <span class="toast-message"></span>
+        </div>
+    </div>
+
+    <script src="{% static 'robot/js/app.js' %}?v=2"></script>
+</body>
+</html>

@@ -1,0 +1,258 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Account Settings - IoT Robot Controller</title>
+  <link rel="stylesheet" href="{% static 'robot/css/style.css' %}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    /* === SETTINGS PAGE — MATCHING PROFILE & PASSWORD STYLE === */
+    body {
+      margin: 0;
+      font-family: var(--font-family-base);
+      background-color: var(--color-background);
+      color: var(--color-text);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 4rem 1rem;
+    }
+
+    .settings-container {
+      width: 100%;
+      max-width: 800px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-card-border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+      padding: 2.5rem 3rem;
+      animation: fadeInUp 0.6s var(--ease-standard);
+    }
+
+    /* === Header === */
+    h1 {
+      font-size: var(--font-size-2xl);
+      font-weight: var(--font-weight-semibold);
+      margin-bottom: 2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      color: var(--color-primary);
+    }
+
+    h1 i {
+      font-size: 1.5rem;
+      color: var(--color-primary);
+    }
+
+    /* === Messages === */
+    .messages {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 1.5rem 0;
+    }
+
+    .messages li {
+      background: rgba(var(--color-teal-500-rgb), 0.08);
+      border-left: 4px solid var(--color-primary);
+      padding: 0.75rem 1rem;
+      border-radius: var(--radius-base);
+      font-size: var(--font-size-sm);
+      color: var(--color-success);
+      margin-bottom: 0.5rem;
+    }
+
+    /* === Form === */
+    .modern-login-form {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .input-group {
+      position: relative;
+    }
+
+    .input-container {
+      position: relative;
+    }
+
+    .input-icon {
+      position: absolute;
+      left: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--color-text-secondary);
+      font-size: 1rem;
+      transition: color 0.3s ease;
+    }
+
+    .modern-input {
+      width: 100%;
+      padding: 1rem 1rem 1rem 2.75rem;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      background: var(--color-surface);
+      color: var(--color-text);
+      font-size: var(--font-size-md);
+      transition: all var(--duration-normal) var(--ease-standard);
+    }
+
+    .modern-input::placeholder {
+      color: transparent;
+    }
+
+    .modern-input:focus {
+      outline: none;
+      border-color: var(--color-primary);
+      background: var(--color-background);
+      box-shadow: 0 0 10px rgba(var(--color-teal-500-rgb), 0.15);
+    }
+
+    .modern-input:focus ~ .input-icon {
+      color: var(--color-primary);
+    }
+
+    /* === Floating Labels === */
+    .floating-label {
+      position: absolute;
+      top: 50%;
+      left: 2.75rem;
+      transform: translateY(-50%);
+      color: var(--color-text-secondary);
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-medium);
+      pointer-events: none;
+      transition: all var(--duration-normal) var(--ease-standard);
+    }
+
+    .modern-input:focus + .floating-label,
+    .modern-input:not(:placeholder-shown) + .floating-label {
+      transform: translateY(-140%) scale(0.9);
+      color: var(--color-primary);
+      font-weight: 600;
+    }
+
+    /* === Submit Button (Matte — No Gradient or Purple Hover) === */
+    .modern-submit-btn {
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      gap: 0.5rem;
+      width: 100%;
+      padding: 0.9rem 1.5rem;
+      font-size: var(--font-size-md);
+      font-weight: var(--font-weight-medium);
+      color: #e2e8f0;
+      background: #1e293b;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: var(--radius-base);
+      cursor: pointer;
+      transition: all 0.25s ease;
+      margin-top: 0.5rem;
+      background-image: none !important;
+      box-shadow: none !important;
+    }
+
+    .modern-submit-btn:hover {
+      background: #334155 !important;
+      transform: translateY(-2px);
+      color: #f1f5f9;
+    }
+
+    .modern-submit-btn i {
+      color: #38bdf8;
+    }
+
+    /* === Back Link === */
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 2rem;
+      color: #38bdf8;
+      text-decoration: none;
+      font-weight: var(--font-weight-medium);
+      transition: color var(--duration-fast) var(--ease-standard);
+    }
+
+    .back-link:hover {
+      color: #7dd3fc;
+      text-decoration: underline;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (max-width: 640px) {
+      .settings-container {
+        padding: 1.5rem;
+      }
+      h1 {
+        font-size: var(--font-size-xl);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="settings-container">
+    <h1><i class="fas fa-user-cog"></i> Account Settings</h1>
+
+    {% if messages %}
+      <ul class="messages">
+        {% for message in messages %}
+          <li>{{ message }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+    <form method="post" class="modern-login-form">
+      {% csrf_token %}
+
+      <div class="input-group">
+        <div class="input-container">
+          <div class="input-icon"><i class="fas fa-user"></i></div>
+          <input type="text" name="first_name" id="first_name" class="modern-input" placeholder=" " value="{{ user.first_name }}">
+          <label for="first_name" class="floating-label">First Name</label>
+        </div>
+      </div>
+
+      <div class="input-group">
+        <div class="input-container">
+          <div class="input-icon"><i class="fas fa-user-tag"></i></div>
+          <input type="text" name="last_name" id="last_name" class="modern-input" placeholder=" " value="{{ user.last_name }}">
+          <label for="last_name" class="floating-label">Last Name</label>
+        </div>
+      </div>
+
+      <div class="input-group">
+        <div class="input-container">
+          <div class="input-icon"><i class="fas fa-envelope"></i></div>
+          <input type="email" name="email" id="email" class="modern-input" placeholder=" " value="{{ user.email }}">
+          <label for="email" class="floating-label">Email</label>
+        </div>
+      </div>
+
+      <button type="submit" class="modern-submit-btn">
+        <i class="fas fa-save"></i> Save Changes
+      </button>
+    </form>
+
+    <a href="{% url 'robot' %}" class="back-link"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+  </main>
+
+  <script src="{% static 'robot/js/app.js' %}"></script>
+</body>
+</html>

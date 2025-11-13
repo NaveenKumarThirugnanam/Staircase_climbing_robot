@@ -1,0 +1,143 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login - IoT Robot Controller</title>
+    <link rel="stylesheet" href="{% static 'robot/css/style.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+</head>
+<body>
+
+<div id="loginPage" class="page-view active">
+    <div class="split-login-container">
+        <!-- Left Panel -->
+        <div class="login-left-panel">
+            <div class="left-panel-background">
+                <div class="animated-patterns">
+                    <div class="pattern-circle pattern-1"></div>
+                    <div class="pattern-circle pattern-2"></div>
+                    <div class="pattern-circle pattern-3"></div>
+                    <div class="pattern-hexagon hex-1"></div>
+                    <div class="pattern-hexagon hex-2"></div>
+                </div>
+            </div>
+
+            <div class="left-panel-content">
+                <div class="brand-showcase">
+                    <div class="robot-illustration">
+                        <div class="robot-icon-large">
+                            <i class="fas fa-robot"></i>
+                            <div class="robot-pulse"></div>
+                            <div class="robot-glow"></div>
+                        </div>
+                        <div class="connection-lines">
+                            <div class="line line-1"></div>
+                            <div class="line line-2"></div>
+                            <div class="line line-3"></div>
+                        </div>
+                    </div>
+
+                    <div class="brand-content">
+                        <h1 class="brand-title-large">IoT Robot Controller</h1>
+                        <p class="brand-tagline">Control the Future with Advanced Robotics</p>
+                        <div class="feature-highlights">
+                            <div class="feature-item">
+                                <div class="feature-icon"><i class="fas fa-wifi"></i></div>
+                                <span>Real-time Control</span>
+                            </div>
+                            <div class="feature-item">
+                                <div class="feature-icon"><i class="fas fa-eye"></i></div>
+                                <span>Live Video Feed</span>
+                            </div>
+                            <div class="feature-item">
+                                <div class="feature-icon"><i class="fas fa-chart-line"></i></div>
+                                <span>Performance Analytics</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="login-right-panel">
+            <div class="form-container">
+                <div class="form-header">
+                    <h2 class="welcome-title">Welcome Back</h2>
+                    <p class="welcome-subtitle">Sign in to your robot control center</p>
+                </div>
+
+                {% if messages %}
+                <ul class="messages">
+                    {% for message in messages %}
+                    <li>{{ message }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+
+                <!-- Django Login Form -->
+                <form class="modern-login-form" id="loginForm" method="post" novalidate>
+                    {% csrf_token %}
+                    {{ form.non_field_errors }}
+                    
+                    <!-- Username -->
+                    <div class="input-group">
+                        <div class="input-container">
+                            <input type="text" name="username" id="username" class="modern-input" placeholder=" " required>
+                            <label for="username" class="floating-label">Username</label>
+                            <div class="input-icon"><i class="fas fa-user"></i></div>
+                            <div class="input-border-effect"></div>
+                        </div>
+                    </div>
+
+                    <!-- Password -->
+                    <div class="input-group">
+                        <div class="input-container">
+                            <input type="password" name="password" id="password" class="modern-input" placeholder=" " required>
+                            <label for="password" class="floating-label">Password</label>
+                            <div class="input-icon"><i class="fas fa-lock"></i></div>
+                            <button type="button" class="password-visibility-toggle" id="passwordToggle" aria-label="Show password">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <div class="input-border-effect"></div>
+                        </div>
+                    </div>
+
+                    <!-- Remember Me & Forgot Password -->
+                    <div class="form-options">
+                        <label class="remember-checkbox">
+                            <input type="checkbox" name="remember">
+                            <span class="checkmark"></span>
+                            <span>Remember me</span>
+                        </label>
+                        <a href="{% url 'password_reset' %}" class="forgot-password">Forgot Password?</a>
+                    </div>
+
+                    <!-- Submit -->
+                    <button type="submit" id="submitBtn" class="modern-submit-btn">
+                        <div class="btn-content">
+                            <span class="btn-text">Sign In</span>
+                            <div class="btn-gradient-overlay"></div>
+                        </div>
+                    </button>
+                </form>
+
+                <!-- Register Link -->
+                <div class="demo-credentials-card">
+                    <div class="demo-info">
+                        <div class="demo-row">
+                            <span>New here?</span>
+                            <a href="{% url 'register' %}" class="register-link">Create an account</a>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{% static 'robot/js/app.js' %}"></script>
+</body>
+</html>

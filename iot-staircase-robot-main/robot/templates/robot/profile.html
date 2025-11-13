@@ -1,0 +1,169 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Profile - IoT Robot Controller</title>
+  <link rel="stylesheet" href="{% static 'robot/css/style.css' %}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    /* === PROFILE PAGE — MATCHING INDEX THEME === */
+    body {
+      margin: 0;
+      font-family: var(--font-family-base);
+      background-color: var(--color-background);
+      color: var(--color-text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4rem 1rem;
+    }
+
+    .content-card {
+      width: 100%;
+      max-width: 820px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-card-border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+      padding: 2.5rem 3rem;
+      animation: fadeInUp 0.6s var(--ease-standard);
+    }
+
+    /* === Header === */
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+      border-bottom: 1px solid var(--color-card-border-inner);
+      padding-bottom: 1rem;
+    }
+
+    .page-title {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      color: var(--color-primary);
+    }
+
+    .page-title h1 {
+      font-size: var(--font-size-2xl);
+      font-weight: var(--font-weight-semibold);
+      margin: 0;
+      color: var(--color-text);
+    }
+
+    .page-title i {
+      font-size: 1.5rem;
+      color: var(--color-primary);
+    }
+
+    /* === Info Card === */
+    .profile-info {
+      background: var(--color-surface);
+      border: 1px solid var(--color-card-border);
+      border-radius: var(--radius-md);
+      padding: 2rem;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .profile-info p {
+      margin: 1rem 0;
+      font-size: var(--font-size-md);
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      color: var(--color-text);
+    }
+
+    .profile-info strong {
+      width: 140px;
+      color: var(--color-text-secondary);
+      font-weight: var(--font-weight-medium);
+    }
+
+    .profile-info i {
+      color: var(--color-primary);
+    }
+
+    /* === Actions === */
+    .profile-actions {
+      margin-top: 2rem;
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .btn-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--color-secondary);
+      color: var(--color-text);
+      font-weight: var(--font-weight-medium);
+      padding: 0.75rem 1.5rem;
+      border-radius: var(--radius-base);
+      border: 1px solid var(--color-border);
+      text-decoration: none;
+      transition: all var(--duration-normal) var(--ease-standard);
+    }
+
+    .btn-link:hover {
+      background: var(--color-secondary-hover);
+      transform: translateY(-2px);
+    }
+
+    .btn-link i {
+      color: var(--color-primary);
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* === Responsive === */
+    @media (max-width: 640px) {
+      .content-card {
+        padding: 1.5rem;
+      }
+      .profile-info strong {
+        width: 110px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="content-card">
+    <header class="page-header">
+      <div class="page-title">
+        <i class="fas fa-user-circle"></i>
+        <h1>Profile</h1>
+      </div>
+    </header>
+
+    <div class="profile-info">
+      <p><strong><i class="fas fa-user"></i> Username:</strong> {{ user.username }}</p>
+      <p><strong><i class="fas fa-id-badge"></i> Full Name:</strong> {% if user.get_full_name %}{{ user.get_full_name }}{% else %}-{% endif %}</p>
+      <p><strong><i class="fas fa-envelope"></i> Email:</strong> {{ user.email }}</p>
+
+      <div class="profile-actions">
+        <a href="{% url 'password_change' %}" class="btn-link"><i class="fas fa-key"></i> Change Password</a>
+        <a href="{% url 'robot' %}" class="btn-link"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+      </div>
+    </div>
+  </main>
+
+  <script src="{% static 'robot/js/app.js' %}"></script>
+</body>
+</html>
