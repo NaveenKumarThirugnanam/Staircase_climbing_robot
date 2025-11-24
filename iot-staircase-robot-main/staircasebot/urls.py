@@ -18,6 +18,9 @@ from django.contrib import admin
 from django.urls import path
 from django.contrib.auth import views as auth_views
 from robot import views
+from django.conf import settings           # ← YOU MISSED THIS
+from django.conf.urls.static import static  # ← And this one
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -47,6 +50,14 @@ urlpatterns = [
          name='password_change_done'),
     path('profile/', views.profile_view, name='profile'),
     path('settings/', views.settings_view, name='settings'),
-    path('robot/', views.robot_dashboard, name='robot'),
+    # Robot pages
+    path('robot/loading/', views.robot_loading, name='robot_loading'),
+    path('robot/controller/', views.robot_controller, name='robot_controller'),
+    path('robot/dashboard/', views.robot_dashboard, name='robot_dashboard'),
+    # Backward-compatible route
+    path('robot/', views.robot_controller, name='robot'),
 ]
 
+# Serve static files during development even when using Daphne
+if settings.DEBUG:
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

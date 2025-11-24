@@ -1,0 +1,133 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loading - IoT Robot Controller</title>
+    <link rel="stylesheet" href="{% static 'robot/css/style.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Advanced Loading Screen Only -->
+    <div id="loadingScreen" class="advanced-loading-screen active">
+        <div class="loading-background-effects">
+            <div class="particle-system">
+                <div class="particle"></div>
+                <div class="particle"></div>
+                <div class="particle"></div>
+                <div class="particle"></div>
+                <div class="particle"></div>
+                <div class="particle"></div>
+                <div class="particle"></div>
+                <div class="particle"></div>
+                <div class="particle"></div>
+                <div class="particle"></div>
+            </div>
+            <div class="wave-animation">
+                <div class="wave wave-1"></div>
+                <div class="wave wave-2"></div>
+                <div class="wave wave-3"></div>
+            </div>
+        </div>
+        <div class="loading-content-center">
+            <div class="morphing-robot-loader">
+                <div class="robot-morph-container">
+                    <div class="morphing-robot">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <div class="morph-rings">
+                        <div class="ring ring-1"></div>
+                        <div class="ring ring-2"></div>
+                        <div class="ring ring-3"></div>
+                    </div>
+                    <div class="circuit-pattern">
+                        <div class="circuit-line c-line-1"></div>
+                        <div class="circuit-line c-line-2"></div>
+                        <div class="circuit-line c-line-3"></div>
+                        <div class="circuit-line c-line-4"></div>
+                    </div>
+                </div>
+                <h1 class="loading-brand-title">IoT Robot Controller</h1>
+                <p class="loading-subtitle" id="loadingMessage">Initializing connection...</p>
+            </div>
+            <div class="advanced-progress-system">
+                <div class="circular-progress">
+                    <div class="progress-ring">
+                        <svg width="120" height="120">
+                            <circle cx="60" cy="60" r="54" class="progress-ring-bg"></circle>
+                            <circle cx="60" cy="60" r="54" class="progress-ring-fill" id="progressRing"></circle>
+                        </svg>
+                        <div class="progress-percentage" id="progressPercentage">0%</div>
+                    </div>
+                </div>
+                <div class="step-indicators">
+                    <div class="step-item" id="step1">
+                        <div class="step-circle">
+                            <i class="fas fa-plug"></i>
+                            <div class="step-check hidden"><i class="fas fa-check"></i></div>
+                        </div>
+                        <span>Connecting</span>
+                    </div>
+                    <div class="step-item" id="step2">
+                        <div class="step-circle">
+                            <i class="fas fa-key"></i>
+                            <div class="step-check hidden"><i class="fas fa-check"></i></div>
+                        </div>
+                        <span>Authenticating</span>
+                    </div>
+                    <div class="step-item" id="step3">
+                        <div class="step-circle">
+                            <i class="fas fa-download"></i>
+                            <div class="step-check hidden"><i class="fas fa-check"></i></div>
+                        </div>
+                        <span>Loading</span>
+                    </div>
+                    <div class="step-item" id="step4">
+                        <div class="step-circle">
+                            <i class="fas fa-rocket"></i>
+                            <div class="step-check hidden"><i class="fas fa-check"></i></div>
+                        </div>
+                        <span>Ready</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // Minimal loader progress and redirect logic independent of app.js
+    (function(){
+        const ring = document.getElementById('progressRing');
+        const pct = document.getElementById('progressPercentage');
+        const steps = [20, 50, 80, 100];
+        let progress = 0;
+        const radius = 54;
+        const circumference = 2 * Math.PI * radius;
+        function setProgress(p){
+            const offset = circumference - (p/100)*circumference;
+            if (ring) ring.style.strokeDashoffset = offset;
+            if (pct) pct.textContent = Math.floor(p) + '%';
+        }
+        const interval = setInterval(() => {
+            progress += 8;
+            if (progress > 100) progress = 100;
+            setProgress(progress);
+            if (progress >= steps[0]) document.getElementById('step1')?.classList.add('completed');
+            if (progress >= steps[1]) document.getElementById('step2')?.classList.add('completed');
+            if (progress >= steps[2]) document.getElementById('step3')?.classList.add('completed');
+            if (progress >= steps[3]) {
+                document.getElementById('step4')?.classList.add('completed');
+                clearInterval(interval);
+                setTimeout(() => {
+                    const params = new URLSearchParams(window.location.search);
+                    const view = params.get('view');
+                    const target = view === 'dashboard' ? '{% url "robot_dashboard" %}' : '{% url "robot_controller" %}';
+                    window.location.href = target;
+                }, 300);
+            }
+        }, 80);
+    })();
+    </script>
+</body>
+</html>

@@ -2,12 +2,15 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.urls import reverse
 from django.contrib.auth.models import User
 
 def home_redirect(request):
     if request.user.is_authenticated:
-        return redirect('robot')
+        return redirect('robot_controller')
     return redirect('login')
+
+
 
 def login_view(request):
     if request.method == 'POST':
@@ -28,7 +31,8 @@ def login_view(request):
                     user = None
         if user is not None:
             login(request, user)
-            return redirect('robot')
+            loading_url = reverse('robot_loading') + '?view=controller'
+            return redirect(loading_url)
         else:
             messages.error(request, 'Invalid username or password')
 
@@ -37,13 +41,21 @@ def login_view(request):
 
 
 @login_required(login_url='login')
-def robot_dashboard(request):
-    initial_view = request.GET.get('view', 'controller')
-    if initial_view not in ['controller', 'dashboard']:
-        initial_view = 'controller'
-    return render(request, 'robot/index.html', {
+def robot_loading(request):
+    return render(request, 'robot/loading.html', {
         'user': request.user,
-        'initial_view': initial_view,
+    })
+
+@login_required(login_url='login')
+def robot_controller(request):
+    return render(request, 'robot/controller.html', {
+        'user': request.user,
+    })
+
+@login_required(login_url='login')
+def robot_dashboard(request):
+    return render(request, 'robot/dashboard.html', {
+        'user': request.user,
     })
 
 def logout_view(request):

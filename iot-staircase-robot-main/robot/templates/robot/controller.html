@@ -1,0 +1,227 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controller - IoT Robot Controller</title>
+    <link rel="stylesheet" href="{% static 'robot/css/style.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@3.8.2/dist/full.css" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <!-- Controller Page -->
+    <div id="controllerPage" class="page-view active">
+        <!-- Header -->
+        <header class="modern-header">
+            <div class="header-content">
+                <div class="header-left">
+                    <div class="brand-logo">
+                        <i class="fas fa-robot"></i>
+                        <span class="logo-text">IoT Robot Controller</span>
+                    </div>
+                    <div class="connection-status">
+                        <div class="status-indicator connected">
+                            <div class="status-dot"></div>
+                            <span>Connected</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <div class="nav-menu">
+                        <a class="nav-item active" id="controllerNavBtn" href="{% url 'robot_controller' %}">
+                            <i class="fas fa-gamepad"></i>
+                            <span>Controller</span>
+                        </a>
+                        <a class="nav-item" id="dashboardNavBtn" href="{% url 'robot_dashboard' %}">
+                            <i class="fas fa-tachometer-alt"></i>
+                            <span>Dashboard</span>
+                        </a>
+                    </div>
+                    <div class="profile-dropdown" id="profileDropdown">
+                        <button class="profile-btn" id="profileBtn">
+                            <div class="profile-avatar">{{ request.user.username|slice:":1"|upper }}</div>
+                            <div class="profile-info">
+                                <span class="profile-name">{{ request.user.get_full_name|default:request.user.username }}</span>
+                                <span class="profile-email">{{ request.user.email }}</span>
+                            </div>
+                            <i class="fas fa-chevron-down profile-arrow"></i>
+                        </button>
+                        <div class="dropdown-menu" id="dropdownMenu">
+                            <a class="dropdown-item" href="{% url 'profile' %}">
+                                <i class="fas fa-user"></i>
+                                <span>Profile</span>
+                            </a>
+                            <a class="dropdown-item" href="{% url 'password_change' %}">
+                                <i class="fas fa-key"></i>
+                                <span>Change Password</span>
+                            </a>
+                            <a class="dropdown-item" href="{% url 'settings' %}">
+                                <i class="fas fa-cog"></i>
+                                <span>Settings</span>
+                            </a>
+                            <div class="dropdown-divider"></div>
+                            <a class="dropdown-item logout" id="logoutBtn" href="{% url 'logout' %}">
+                                <i class="fas fa-sign-out-alt"></i>
+                                <span>Sign Out</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Controller Content -->
+        <main class="controller-main">
+            <div class="controller-grid">
+                <!-- Camera Feed Section -->
+                <section class="camera-section">
+                    <div class="section-header">
+                        <h2>Live Camera Feed</h2>
+                        <div class="camera-controls">
+                            <button class="control-btn"><i class="fas fa-play"></i></button>
+                            <button class="control-btn"><i class="fas fa-volume-up"></i></button>
+                            <button class="control-btn"><i class="fas fa-refresh"></i></button>
+                            <button class="control-btn"><i class="fas fa-expand"></i></button>
+                        </div>
+                    </div>
+                    <div class="camera-feed">
+                        <div class="video-container">
+                            <div class="video-overlay">
+                                <div class="live-indicator">
+                                    <div class="live-dot"></div>
+                                    <span>LIVE</span>
+                                </div>
+                                <div class="timestamp" id="timestamp">6:20 PM</div>
+                                <div class="video-quality">1080p</div>
+                                <div class="signal-strength">
+                                    <i class="fas fa-wifi"></i>
+                                    <span id="signalStrength">95%</span>
+                                </div>
+                            </div>
+                            <div class="video-content">
+                                <div class="crosshair">
+                                    <div class="crosshair-h"></div>
+                                    <div class="crosshair-v"></div>
+                                </div>
+                                <div class="moving-target" id="movingTarget"></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Sidebar -->
+                <aside class="controller-sidebar">
+                    <!-- Battery Section -->
+                    <section class="battery-section">
+                        <h3>Battery Status</h3>
+                        <div class="battery-display">
+                            <div class="battery-icon">
+                                <div class="battery-level" id="batteryLevel" style="width: 85%"></div>
+                                <div class="battery-tip"></div>
+                            </div>
+                            <div class="battery-info">
+                                <div class="battery-percentage" id="batteryPercentage">85%</div>
+                                <div class="battery-status">Good</div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Robot Status -->
+                    <section class="status-section">
+                        <h3>Robot Status</h3>
+                        <div class="status-grid">
+                            <div class="status-item">
+                                <label>Position X:</label>
+                                <span class="status-value" id="positionX">0.00</span>
+                            </div>
+                            <div class="status-item">
+                                <label>Position Y:</label>
+                                <span class="status-value" id="positionY">0.00</span>
+                            </div>
+                            <div class="status-item">
+                                <label>Camera X:</label>
+                                <span class="status-value" id="cameraX">0.00</span>
+                            </div>
+                            <div class="status-item">
+                                <label>Camera Y:</label>
+                                <span class="status-value" id="cameraY">0.00</span>
+                            </div>
+                        </div>
+                    </section>
+                </aside>
+
+                <!-- Controls Section - Side by Side Joysticks -->
+                <section class="controls-section">
+                    <h3>Robot Controls</h3>
+                    <div class="joystick-container">
+                        <!-- Robot Movement Joystick -->
+                        <div class="joystick-wrapper">
+                            <h4>Robot Movement</h4>
+                            <div class="joystick" id="robotJoystick">
+                                <div class="joystick-base">
+                                    <div class="joystick-directions">
+                                        <div class="direction up"><i class="fas fa-arrow-up"></i></div>
+                                        <div class="direction down"><i class="fas fa-arrow-down"></i></div>
+                                        <div class="direction left"><i class="fas fa-arrow-left"></i></div>
+                                        <div class="direction right"><i class="fas fa-arrow-right"></i></div>
+                                    </div>
+                                    <div class="joystick-knob" id="robotKnob"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Middle Sliders -->
+                        <div class="sliders-wrapper">
+                            <!-- Speed Control -->
+                            <div class="slider-group">
+                                <div class="slider-row">
+                                    <h4>Movement Speed</h4>
+                                    <span id="speedValue" class="slider-value">50%</span>
+                                </div>
+                                <input type="range" id="speedSlider" min="1" max="100" value="50" class="range range-success styled-range" style="margin-bottom: 15px;">
+                            </div>
+
+                            <!-- Brightness Control -->
+                            <div class="slider-group">
+                                <div class="slider-row">
+                                    <h4>Brightness</h4>
+                                    <span id="brightnessValue" class="slider-value">70%</span>
+                                </div>
+                                <input type="range" id="brightnessSlider" min="1" max="100" value="70" class="range range-success styled-range">
+                            </div>
+                        </div>
+
+                        <!-- Camera Control Joystick -->
+                        <div class="joystick-wrapper">
+                            <h4>Camera Control</h4>
+                            <div class="joystick" id="cameraJoystick">
+                                <div class="joystick-base">
+                                    <div class="joystick-directions">
+                                        <div class="direction up"><i class="fas fa-arrow-up"></i></div>
+                                        <div class="direction down"><i class="fas fa-arrow-down"></i></div>
+                                        <div class="direction left"><i class="fas fa-arrow-left"></i></div>
+                                        <div class="direction right"><i class="fas fa-arrow-right"></i></div>
+                                    </div>
+                                    <div class="joystick-knob" id="cameraKnob"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <div class="toast-notification hidden" id="toastNotification">
+        <div class="toast-content">
+            <i class="toast-icon"></i>
+            <span class="toast-message"></span>
+        </div>
+    </div>
+
+    <script src="{% static 'robot/js/app.js' %}?v=2"></script>
+</body>
+</html>

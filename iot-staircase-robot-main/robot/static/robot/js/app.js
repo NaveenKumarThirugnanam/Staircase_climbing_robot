@@ -1,15 +1,104 @@
+// ===== GLOBAL WEBSOCKET CONNECTION =====
+// Use dynamic URL to work in production
+const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const host = window.location.host;
+const socket = new WebSocket(`${protocol}//${host}/ws/telemetry/`);
 
+console.log(`🔌 WebSocket URL: ${protocol}//${host}/ws/telemetry/`);
 
+socket.onopen = () => {
+    console.log("✅ WebSocket connected");
+};
 
+socket.onmessage = (event) => {
+    try {
+        const data = JSON.parse(event.data);
+        console.log("📨 WebSocket message received:", data);
+        
+        // Handle control acknowledgments
+        if (data.type === "ack") {
+            console.log(`✅ ACK: ${data.original_type} - ${data.message || 'OK'}`);
+            return;
+        }
+        
+        // ===== HANDLE TELEMETRY UPDATES FROM SERVER =====
+        if (data.type === "telemetry_update") {
+            console.log(`📡 Telemetry update from ${data.device_id}:`, {
+                battery: data.battery,
+                cpu: data.cpu,
+                temperature: data.temperature,
+                signal: data.signal
+            });
+            
+            // Update dashboard with telemetry data
+            updateDashboardFromTelemetry(data);
+            return;
+        }
+        
+        // ===== HANDLE ROBOT STATUS UPDATES =====
+        if (data.type === "robot_status") {
+            console.log(`ℹ️  Robot status from ${data.device_id}: ${data.status}`);
+            
+            // Update robot connection status if needed
+            if (data.status === "disconnected") {
+                showModernToast(`Robot ${data.device_id} disconnected`, 'error');
+            }
+            return;
+        }
+        
+    } catch (err) {
+        console.error("❌ Error parsing WebSocket message:", err, event.data);
+    }
+};
 
+socket.onerror = (err) => {
+    console.error("❌ WebSocket error:", err);
+};
 
+socket.onclose = () => {
+    console.warn("⚠️  WebSocket closed");
+};
+
+// Simple throttling for control messages (per type)
+const controlSendState = {
+    lastSentAt: {},
+    minIntervalMs: 50 // max ~20 msgs/sec per type
+};
+
+function sendControlMessage(payload) {
+    if (!socket || socket.readyState !== 1) {
+        console.warn("WS not open  cannot send control message", payload);
+        return;
+    }
+
+    const now = Date.now();
+    const typeKey = payload && payload.type ? payload.type : "generic";
+    const last = controlSendState.lastSentAt[typeKey] || 0;
+    if (now - last < controlSendState.minIntervalMs) {
+        return;
+    }
+    controlSendState.lastSentAt[typeKey] = now;
+
+    try {
+        const withTs = Object.assign({ client_ts: now }, payload || {});
+        socket.send(JSON.stringify(withTs));
+        // Optional debug
+        // console.log("WS control →", withTs);
+    } catch (err) {
+        console.warn("WS send error (control)", err, payload);
+    }
+}
 
 // Modern IoT Robot Controller - Fixed Application
 document.addEventListener('DOMContentLoaded', function () {
     console.log('🤖 Modern IoT Robot Controller Starting...');
     // Detect current page context
     const isLoginPage = document.getElementById('loginPage') !== null;
-    const isRobotPage = document.getElementById('controllerPage') !== null || document.getElementById('loadingScreen') !== null;
+    const isRobotPage = (
+        document.getElementById('controllerPage') !== null ||
+        document.getElementById('dashboardPage') !== null ||
+        document.getElementById('loadingScreen') !== null
+    );
 
     console.log(`🧭 Detected page: ${isLoginPage ? 'Login Page' : isRobotPage ? 'Robot Dashboard' : 'Unknown'}`);
 
@@ -20,16 +109,18 @@ document.addEventListener('DOMContentLoaded', function () {
         loading: false,
         user: null,
         connected: true,
-        battery: 85,
-        cpu: 38,
-        temperature: 41,
-        signal: 93,
+        devices: {
+            '1': { name: 'Device 1', battery: 85, cpu: 38, temperature: 41, signal: 93, memory: 64, storage: 23, download: 125, upload: 32 },
+            '2': { name: 'Device 2', battery: 72, cpu: 44, temperature: 39, signal: 88, memory: 58, storage: 31, download: 118, upload: 28 }
+        },
+        activeDevice: '1',
         robotPosition: { x: 0.00, y: 0.00 },
         cameraPosition: { x: 0.00, y: 0.00 },
         joysticks: {
             robot: { active: false, x: 0, y: 0 },
             camera: { active: false, x: 0, y: 0 }
         },
+        interactingWithSlider: false,
         batteryChart: null
     };
 
@@ -118,16 +209,32 @@ document.addEventListener('DOMContentLoaded', function () {
             cameraJoystick: document.getElementById('cameraJoystick'),
             robotKnob: document.getElementById('robotKnob'),
             cameraKnob: document.getElementById('cameraKnob'),
+            speedSlider: document.getElementById('speedSlider'),
+            brightnessSlider: document.getElementById('brightnessSlider'),
+            speedValue: document.getElementById('speedValue'),
+            brightnessValue: document.getElementById('brightnessValue'),
 
             // Dashboard elements
             backToControllerBtn: document.getElementById('backToControllerBtn'),
             profileBtnDashboard: document.getElementById('profileBtnDashboard'),
             profileDropdownDashboard: document.getElementById('profileDropdownDashboard'),
             logoutBtnDashboard: document.getElementById('logoutBtnDashboard'),
-            metricBattery: document.getElementById('metricBattery'),
-            metricCpu: document.getElementById('metricCpu'),
-            metricTemperature: document.getElementById('metricTemperature'),
-            metricSignal: document.getElementById('metricSignal'),
+            // Dashboard device UI
+            deviceBtns: document.querySelectorAll('.device-btn'),
+            activeDeviceTitle: document.getElementById('activeDeviceTitle'),
+            batteryValue: document.getElementById('batteryValue'),
+            cpuValue: document.getElementById('cpuValue'),
+            temperatureValue: document.getElementById('temperatureValue'),
+            signalValue: document.getElementById('signalValue'),
+            cpuBar: document.getElementById('cpuBar'),
+            memoryBar: document.getElementById('memoryBar'),
+            storageBar: document.getElementById('storageBar'),
+            cpuPercent: document.getElementById('cpuPercent'),
+            memoryPercent: document.getElementById('memoryPercent'),
+            storagePercent: document.getElementById('storagePercent'),
+            networkSignal: document.getElementById('networkSignal'),
+            networkDownload: document.getElementById('networkDownload'),
+            networkUpload: document.getElementById('networkUpload'),
 
             // Toast
             toastNotification: document.getElementById('toastNotification')
@@ -136,13 +243,46 @@ document.addEventListener('DOMContentLoaded', function () {
         console.log('Elements initialized:', Object.keys(elements).length);
     }
 
+    function sendSpeedToRobot(value) {
+        const speedValue = Number(value);
+        console.log('⚡ SENDING SPEED TO ROBOT:', speedValue + '%');
+        console.log('⚡ Calling sendControlMessage with:', {type: 'set_speed', value: speedValue});
+        const message = {
+            type: 'set_speed',
+            value: speedValue
+        };
+        console.log('📤 Speed message:', JSON.stringify(message));
+        sendControlMessage(message);
+        console.log('⚡ sendControlMessage completed for speed');
+    }
+
+    function sendBrightnessToRobot(value) {
+        const brightnessValue = Number(value);
+        console.log('💡 SENDING BRIGHTNESS TO ROBOT:', brightnessValue + '%');
+        console.log('💡 Calling sendControlMessage with:', {type: 'set_brightness', value: brightnessValue});
+        const message = {
+            type: 'set_brightness',
+            value: brightnessValue
+        };
+        console.log('📤 Brightness message:', JSON.stringify(message));
+        sendControlMessage(message);
+        console.log('💡 sendControlMessage completed for brightness');
+    }
+
     // Initialize the application
     function init() {
         console.log('🚀 Initializing Modern IoT Robot Controller...');
 
         // Read preferred view from URL (?view=dashboard)
         const params = new URLSearchParams(window.location.search);
-        const preferredView = params.get('view');
+        let preferredView = params.get('view');
+        const hasController = document.getElementById('controllerPage') !== null;
+        const hasDashboard = document.getElementById('dashboardPage') !== null;
+        if (!preferredView) {
+            // Default to the only available view on split pages
+            if (hasDashboard && !hasController) preferredView = 'dashboard';
+            else preferredView = 'controller';
+        }
 
         // Initialize elements first
         //initElements();
@@ -168,6 +308,12 @@ document.addEventListener('DOMContentLoaded', function () {
             updateTimestamp();
             setInterval(updateTimestamp, 1000);
             startAdvancedDataSimulation();
+
+            // If this is a split page containing only the dashboard, initialize it now
+            const onlyDashboard = document.getElementById('dashboardPage') && !document.getElementById('controllerPage');
+            if (onlyDashboard) {
+                initializeEnhancedDashboard();
+            }
         }
 
 
@@ -203,22 +349,24 @@ document.addEventListener('DOMContentLoaded', function () {
         // Normalize initial URL state and attach popstate handler
         if (isRobotPage) {
             // Ensure URL reflects the current view without adding history entries
-            setViewInUrl(preferredView === 'dashboard' ? 'dashboard' : 'controller', true);
+            const initialView = preferredView === 'dashboard' ? 'dashboard' : 'controller';
+            setViewInUrl(initialView, true);
 
-            // Handle browser back/forward navigation
-            window.addEventListener('popstate', () => {
-                const params = new URLSearchParams(window.location.search);
-                const view = params.get('view');
-                if (view === 'dashboard') {
+            // Only attach in-page routing if both sections exist in the same document
+            if (hasController && hasDashboard) {
+                window.addEventListener('popstate', () => {
+                    const params = new URLSearchParams(window.location.search);
+                    const view = params.get('view');
+                    if (view === 'dashboard') {
+                        navigateToDashboard();
+                    } else {
+                        navigateToController();
+                    }
+                });
+
+                if (initialView === 'dashboard') {
                     navigateToDashboard();
-                } else {
-                    navigateToController();
                 }
-            });
-
-            // Route to dashboard based on URL ?view=dashboard after loading
-            if (preferredView === 'dashboard') {
-                navigateToDashboard();
             }
         }
     }
@@ -366,10 +514,60 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
 
-        // Dashboard events
-        if (elements.backToControllerBtn) {
-            elements.backToControllerBtn.addEventListener('click', navigateToController);
+        // Sliders
+        console.log('🔧 Setting up sliders - speedSlider:', !!elements.speedSlider, 'brightnessSlider:', !!elements.brightnessSlider);
+        if (elements.speedSlider) {
+            console.log('✅ Speed slider found, adding event listener');
+            elements.speedSlider.addEventListener('input', () => {
+                console.log('⚡ Speed slider input event fired:', elements.speedSlider.value);
+                if (elements.speedValue) {
+                    elements.speedValue.textContent = elements.speedSlider.value + '%';
+                }
+                sendSpeedToRobot(elements.speedSlider.value);
+                updateRangeFill(elements.speedSlider);
+            });
+            ['pointerdown', 'touchstart', 'mousedown'].forEach(evt => {
+                elements.speedSlider.addEventListener(evt, (e) => {
+                    appState.interactingWithSlider = true;
+                    e.stopPropagation();
+                }, { passive: false });
+            });
+            ['pointerup', 'touchend', 'mouseup', 'change', 'blur', 'mouseleave'].forEach(evt => {
+                elements.speedSlider.addEventListener(evt, (e) => {
+                    appState.interactingWithSlider = false;
+                    e.stopPropagation();
+                });
+            });
+            // Initialize fill
+            updateRangeFill(elements.speedSlider);
         }
+        if (elements.brightnessSlider) {
+            console.log('✅ Brightness slider found, adding event listener');
+            elements.brightnessSlider.addEventListener('input', () => {
+                console.log('💡 Brightness slider input event fired:', elements.brightnessSlider.value);
+                if (elements.brightnessValue) {
+                    elements.brightnessValue.textContent = elements.brightnessSlider.value + '%';
+                }
+                sendBrightnessToRobot(elements.brightnessSlider.value);
+                updateRangeFill(elements.brightnessSlider);
+            });
+            ['pointerdown', 'touchstart', 'mousedown'].forEach(evt => {
+                elements.brightnessSlider.addEventListener(evt, (e) => {
+                    appState.interactingWithSlider = true;
+                    e.stopPropagation();
+                }, { passive: false });
+            });
+            ['pointerup', 'touchend', 'mouseup', 'change', 'blur', 'mouseleave'].forEach(evt => {
+                elements.brightnessSlider.addEventListener(evt, (e) => {
+                    appState.interactingWithSlider = false;
+                    e.stopPropagation();
+                });
+            });
+            // Initialize fill
+            updateRangeFill(elements.brightnessSlider);
+        }
+
+        // ... (rest of the code remains the same)
 
         if (elements.profileBtnDashboard) {
             elements.profileBtnDashboard.addEventListener('click', toggleProfileDropdownDashboard);
@@ -384,6 +582,19 @@ document.addEventListener('DOMContentLoaded', function () {
         tabBtns.forEach(btn => {
             btn.addEventListener('click', () => switchTab(btn.dataset.tab));
         });
+
+        // Device selection
+        if (elements.deviceBtns && elements.deviceBtns.length) {
+            elements.deviceBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const deviceId = btn.getAttribute('data-device');
+                    if (!deviceId || appState.activeDevice === deviceId) return;
+                    appState.activeDevice = deviceId;
+                    elements.deviceBtns.forEach(b => b.classList.toggle('active', b === btn));
+                    updateActiveDeviceUI();
+                });
+            });
+        }
 
         // Close dropdowns when clicking outside
         document.addEventListener('click', (e) => {
@@ -400,6 +611,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Window resize handler
         window.addEventListener('resize', handleResize);
+
+        // Initialize dashboard device UI once
+        updateActiveDeviceUI();
+
+        // Generic: apply dynamic fill updates to any DaisyUI accent ranges on the page
+        const accentRanges = document.querySelectorAll('.range.range-accent');
+        accentRanges.forEach((slider) => {
+            // initialize
+            updateRangeFill(slider);
+            // live update
+            slider.addEventListener('input', () => updateRangeFill(slider));
+        });
 
         console.log('✅ Event listeners setup complete');
     }
@@ -890,6 +1113,12 @@ document.addEventListener('DOMContentLoaded', function () {
         // Update URL to reflect dashboard
         setViewInUrl('dashboard');
 
+        // If this page does not contain a dashboard section, redirect to separate route
+        if (!elements.dashboardPage) {
+            window.location.href = '/robot/dashboard/';
+            return;
+        }
+
         // Enhanced controller exit
         if (elements.controllerPage) {
             elements.controllerPage.style.transform = 'translateX(-30px) scale(0.98)';
@@ -931,6 +1160,12 @@ document.addEventListener('DOMContentLoaded', function () {
         console.log('🎯 Enhanced navigation back to controller...');
         // Update URL to reflect controller
         setViewInUrl('controller');
+
+        // If this page does not contain a controller section, redirect to separate route
+        if (!elements.controllerPage) {
+            window.location.href = '/robot/controller/';
+            return;
+        }
 
         // Enhanced dashboard exit
         if (elements.dashboardPage) {
@@ -1253,6 +1488,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const maxDistance = 40;
 
         function startDrag(e) {
+            if (appState.interactingWithSlider) {
+                e.preventDefault();
+                return;
+            }
             isDragging = true;
             const rect = joystickElement.getBoundingClientRect();
             centerX = rect.left + rect.width / 2;
@@ -1275,6 +1514,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         function drag(e) {
             if (!isDragging) return;
+            if (appState.interactingWithSlider) return;
 
             const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
             const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
@@ -1295,6 +1535,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
             appState.joysticks[type].x = normalizedX;
             appState.joysticks[type].y = normalizedY;
+
+            // Debug: show drag movement per event
+            try {
+                console.log(`Drag → ${type}: ${normalizedX.toFixed(2)}, ${normalizedY.toFixed(2)}`);
+            } catch {}
 
             updatePositionFromJoystick(type, normalizedX, normalizedY);
 
@@ -1320,6 +1565,21 @@ document.addEventListener('DOMContentLoaded', function () {
             appState.joysticks[type].x = 0;
             appState.joysticks[type].y = 0;
 
+            // Send a stop/zero command when joystick is released
+            if (type === 'robot') {
+                sendControlMessage({
+                    type: 'robot_move',
+                    x: 0,
+                    y: 0
+                });
+            } else if (type === 'camera') {
+                sendControlMessage({
+                    type: 'camera_move',
+                    x: 0,
+                    y: 0
+                });
+            }
+
             document.removeEventListener('mousemove', drag);
             document.removeEventListener('mouseup', stopDrag);
             document.removeEventListener('touchmove', drag);
@@ -1330,9 +1590,15 @@ document.addEventListener('DOMContentLoaded', function () {
         knobElement.addEventListener('touchstart', startDrag, { passive: false });
     }
 
-    // Enhanced position updates
+    // Enhanced position updates + WebSocket sending
     function updatePositionFromJoystick(type, x, y) {
+        // sensitivity logic — keep original
         const sensitivity = 0.15;
+
+        // Debug log for joystick values
+        try {
+            console.log("Joystick:", type, "X:", x.toFixed(2), "Y:", y.toFixed(2));
+        } catch {}
 
         if (type === 'robot') {
             appState.robotPosition.x += x * sensitivity;
@@ -1341,13 +1607,28 @@ document.addEventListener('DOMContentLoaded', function () {
             appState.robotPosition.x = Math.max(-99.99, Math.min(99.99, appState.robotPosition.x));
             appState.robotPosition.y = Math.max(-99.99, Math.min(99.99, appState.robotPosition.y));
 
+            // SEND ROBOT JOYSTICK DATA as robot_move control message
+            sendControlMessage({
+                type: 'robot_move',
+                x: appState.robotPosition.x,
+                y: appState.robotPosition.y
+            });
+
             updateStatusDisplay('position');
+
         } else if (type === 'camera') {
             appState.cameraPosition.x += x * sensitivity;
             appState.cameraPosition.y += y * sensitivity;
 
             appState.cameraPosition.x = Math.max(-99.99, Math.min(99.99, appState.cameraPosition.x));
             appState.cameraPosition.y = Math.max(-99.99, Math.min(99.99, appState.cameraPosition.y));
+
+            // SEND CAMERA JOYSTICK DATA as camera_move control message
+            sendControlMessage({
+                type: 'camera_move',
+                x: appState.cameraPosition.x,
+                y: appState.cameraPosition.y
+            });
 
             updateStatusDisplay('camera');
         }
@@ -1386,8 +1667,59 @@ document.addEventListener('DOMContentLoaded', function () {
         if (elements.positionY) elements.positionY.textContent = appState.robotPosition.y.toFixed(2);
         if (elements.cameraX) elements.cameraX.textContent = appState.cameraPosition.x.toFixed(2);
         if (elements.cameraY) elements.cameraY.textContent = appState.cameraPosition.y.toFixed(2);
-        if (elements.batteryPercentage) elements.batteryPercentage.textContent = `${Math.round(appState.battery)}%`;
-        if (elements.signalStrength) elements.signalStrength.textContent = `${Math.round(appState.signal)}%`;
+        // Controller sidebar legacy values remain handled in simulation
+    }
+
+    // ===== UPDATE DASHBOARD FROM TELEMETRY (from WebSocket server) =====
+    function updateDashboardFromTelemetry(telemetryData) {
+        console.log("📊 Updating dashboard with telemetry:", telemetryData);
+        
+        // Extract data
+        const deviceId = telemetryData.device_id || "1";
+        const battery = telemetryData.battery;
+        const cpu = telemetryData.cpu;
+        const temperature = telemetryData.temperature;
+        const signal = telemetryData.signal;
+        
+        // Update app state if this is the active device
+        if (deviceId === appState.activeDevice || deviceId === "1") {
+            appState.devices[deviceId] = {
+                ...appState.devices[deviceId],
+                battery: battery,
+                cpu: cpu,
+                temperature: temperature,
+                signal: signal
+            };
+        }
+        
+        // Update controller sidebar (if visible)
+        if (elements.batteryLevel) {
+            elements.batteryLevel.style.width = `${battery}%`;
+        }
+        if (elements.batteryPercentage) {
+            elements.batteryPercentage.textContent = `${Math.round(battery)}%`;
+        }
+        if (elements.signalStrength) {
+            elements.signalStrength.textContent = `${Math.round(signal)}%`;
+        }
+        
+        // Update dashboard if visible
+        if (appState.currentPage === 'dashboard') {
+            updateActiveDeviceUI();
+        }
+        
+        // Update metric values if dashboard page
+        const batteryEl = document.getElementById("metricBattery");
+        const cpuEl = document.getElementById("metricCpu");
+        const tempEl = document.getElementById("metricTemperature");
+        const signalEl = document.getElementById("metricSignal");
+        
+        if (batteryEl) batteryEl.textContent = `${Math.round(battery)}%`;
+        if (cpuEl) cpuEl.textContent = `${Math.round(cpu)}%`;
+        if (tempEl) tempEl.textContent = `${Math.round(temperature)}°C`;
+        if (signalEl) signalEl.textContent = `${Math.round(signal)}%`;
+        
+        console.log("✅ Dashboard updated with real telemetry data");
     }
 
     // Enhanced status entrance animation
@@ -1423,36 +1755,43 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Enhanced data simulation
     function startAdvancedDataSimulation() {
-        // Enhanced signal strength simulation
+        // Signal simulation per device
         setInterval(() => {
-            if ((appState.currentPage === 'controller' || appState.currentPage === 'dashboard') && elements.signalStrength) {
-                const variation = Math.random() * 8 - 4;
-                appState.signal = Math.max(85, Math.min(100, 93 + variation));
-                elements.signalStrength.textContent = `${Math.round(appState.signal)}%`;
+            if ((appState.currentPage === 'controller' || appState.currentPage === 'dashboard')) {
+                Object.keys(appState.devices).forEach(id => {
+                    const dev = appState.devices[id];
+                    const variation = Math.random() * 8 - 4;
+                    dev.signal = Math.max(70, Math.min(100, dev.signal + variation));
+                });
 
-                // Update dashboard metric
-                if (elements.metricSignal && appState.currentPage === 'dashboard') {
-                    elements.metricSignal.textContent = `${Math.round(appState.signal)}%`;
+                // Update controller sidebar signal (use active device for display if available)
+                const activeDev = appState.devices[appState.activeDevice];
+                if (elements.signalStrength && activeDev) {
+                    elements.signalStrength.textContent = `${Math.round(activeDev.signal)}%`;
                 }
+                if (appState.currentPage === 'dashboard') updateActiveDeviceUI();
             }
         }, 3000);
 
-        // Enhanced battery simulation
+        // Battery simulation per device
         setInterval(() => {
             if ((appState.currentPage === 'controller' || appState.currentPage === 'dashboard')) {
-                appState.battery = Math.max(15, appState.battery - 0.008);
+                Object.keys(appState.devices).forEach(id => {
+                    const dev = appState.devices[id];
+                    dev.battery = Math.max(15, dev.battery - 0.02);
+                });
 
-                if (elements.batteryLevel && elements.batteryPercentage) {
-                    elements.batteryLevel.style.width = `${appState.battery}%`;
-                    elements.batteryPercentage.textContent = `${Math.round(appState.battery)}%`;
+                const activeDev = appState.devices[appState.activeDevice];
+                if (elements.batteryLevel && elements.batteryPercentage && activeDev) {
+                    elements.batteryLevel.style.width = `${activeDev.battery}%`;
+                    elements.batteryPercentage.textContent = `${Math.round(activeDev.battery)}%`;
 
-                    // Enhanced battery color changes
-                    if (appState.battery < 25) {
+                    if (activeDev.battery < 25) {
                         elements.batteryLevel.style.background = 'linear-gradient(90deg, #ef4444 0%, #dc2626 100%)';
-                        if (appState.battery < 15) {
+                        if (activeDev.battery < 15) {
                             elements.batteryLevel.style.animation = 'batteryBlink 1s ease-in-out infinite';
                         }
-                    } else if (appState.battery < 50) {
+                    } else if (activeDev.battery < 50) {
                         elements.batteryLevel.style.background = 'linear-gradient(90deg, #f97316 0%, #ea580c 100%)';
                         elements.batteryLevel.style.animation = '';
                     } else {
@@ -1461,38 +1800,59 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                 }
 
-                // Update dashboard metric
-                if (elements.metricBattery && appState.currentPage === 'dashboard') {
-                    elements.metricBattery.textContent = `${Math.round(appState.battery)}%`;
-                }
+                if (appState.currentPage === 'dashboard') updateActiveDeviceUI();
             }
         }, 12000);
 
-        // Enhanced CPU and temperature simulation
+        // CPU/Temp/Network simulation per device
         setInterval(() => {
             if (appState.currentPage === 'dashboard') {
-                appState.cpu = Math.max(25, Math.min(75, appState.cpu + (Math.random() * 8 - 4)));
-                appState.temperature = Math.max(35, Math.min(55, appState.temperature + (Math.random() * 3 - 1.5)));
+                Object.keys(appState.devices).forEach(id => {
+                    const dev = appState.devices[id];
+                    dev.cpu = Math.max(15, Math.min(95, dev.cpu + (Math.random() * 10 - 5)));
+                    dev.temperature = Math.max(30, Math.min(70, dev.temperature + (Math.random() * 4 - 2)));
+                    dev.memory = Math.max(20, Math.min(95, dev.memory + (Math.random() * 6 - 3)));
+                    dev.storage = Math.max(10, Math.min(90, dev.storage + (Math.random() * 3 - 1.5)));
+                    dev.download = Math.max(50, Math.min(200, dev.download + (Math.random() * 20 - 10)));
+                    dev.upload = Math.max(10, Math.min(80, dev.upload + (Math.random() * 10 - 5)));
+                });
 
-                if (elements.metricCpu) {
-                    elements.metricCpu.style.transition = 'color 0.3s ease';
-                    elements.metricCpu.style.color = 'var(--color-primary)';
-                    elements.metricCpu.textContent = `${Math.round(appState.cpu)}%`;
-                    setTimeout(() => {
-                        elements.metricCpu.style.color = '';
-                    }, 300);
-                }
-
-                if (elements.metricTemperature) {
-                    elements.metricTemperature.style.transition = 'color 0.3s ease';
-                    elements.metricTemperature.style.color = 'var(--color-primary)';
-                    elements.metricTemperature.textContent = `${Math.round(appState.temperature)}°C`;
-                    setTimeout(() => {
-                        elements.metricTemperature.style.color = '';
-                    }, 300);
-                }
+                updateActiveDeviceUI();
             }
         }, 6000);
+    }
+
+    function updateActiveDeviceUI() {
+        if (!document.getElementById('dashboardPage')) return;
+        const dev = appState.devices[appState.activeDevice];
+        if (!dev) return;
+
+        if (elements.activeDeviceTitle) {
+            elements.activeDeviceTitle.textContent = `${dev.name} — Live Metrics`;
+        }
+        if (elements.batteryValue) elements.batteryValue.textContent = `${Math.round(dev.battery)}%`;
+        if (elements.cpuValue) elements.cpuValue.textContent = `${Math.round(dev.cpu)}%`;
+        if (elements.temperatureValue) elements.temperatureValue.textContent = `${Math.round(dev.temperature)}°C`;
+        if (elements.signalValue) elements.signalValue.textContent = `${Math.round(dev.signal)}%`;
+
+        if (elements.cpuBar) {
+            elements.cpuBar.style.width = `${Math.round(dev.cpu)}%`;
+            elements.cpuBar.style.background = '#06B6D4';
+        }
+        if (elements.memoryBar) {
+            elements.memoryBar.style.width = `${Math.round(dev.memory)}%`;
+            elements.memoryBar.style.background = '#B4413C';
+        }
+        if (elements.storageBar) {
+            elements.storageBar.style.width = `${Math.round(dev.storage)}%`;
+            elements.storageBar.style.background = '#5D878F';
+        }
+        if (elements.cpuPercent) elements.cpuPercent.textContent = `${Math.round(dev.cpu)}%`;
+        if (elements.memoryPercent) elements.memoryPercent.textContent = `${Math.round(dev.memory)}%`;
+        if (elements.storagePercent) elements.storagePercent.textContent = `${Math.round(dev.storage)}%`;
+        if (elements.networkSignal) elements.networkSignal.textContent = `${Math.round(dev.signal)}%`;
+        if (elements.networkDownload) elements.networkDownload.textContent = `${Math.round(dev.download)} Mbps`;
+        if (elements.networkUpload) elements.networkUpload.textContent = `${Math.round(dev.upload)} Mbps`;
     }
 
     // Handle window resize
@@ -1500,6 +1860,17 @@ document.addEventListener('DOMContentLoaded', function () {
         if (window.innerWidth < 768) {
             // Mobile-specific adjustments
         }
+    }
+
+    // Update a range input's visual fill track to match its current value
+    function updateRangeFill(inputEl) {
+        if (!inputEl) return;
+        const min = Number(inputEl.min || 0);
+        const max = Number(inputEl.max || 100);
+        const val = Number(inputEl.value || 0);
+        const pct = ((val - min) * 100) / (max - min);
+        // Update CSS variable for gradient fill
+        inputEl.style.setProperty('--value', `${pct}%`);
     }
 
     // Enhanced toast notifications
@@ -1574,4 +1945,6 @@ document.addEventListener('DOMContentLoaded', function () {
     init();
 
     console.log('🎉 Modern IoT Robot Controller fully loaded and ready!');
+
+
 });

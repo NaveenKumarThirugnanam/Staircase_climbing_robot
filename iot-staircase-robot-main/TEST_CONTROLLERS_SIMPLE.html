@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Controller Test</title>
+</head>
+<body>
+    <h1>🎮 Controller Test</h1>
+    
+    <div style="margin: 20px;">
+        <h2>Speed Slider</h2>
+        <input type="range" id="speedSlider" min="0" max="100" value="50">
+        <span id="speedValue">50%</span>
+    </div>
+    
+    <div style="margin: 20px;">
+        <h2>Brightness Slider</h2>
+        <input type="range" id="brightnessSlider" min="0" max="100" value="50">
+        <span id="brightnessValue">50%</span>
+    </div>
+
+    <script>
+        // Open console with F12 to see logs
+        console.log('🎮 Controller Test Page Loaded');
+
+        function sendSpeedToRobot(value) {
+            const speedValue = Number(value);
+            console.log('⚡ SENDING SPEED TO ROBOT:', speedValue + '%');
+            const message = {
+                type: 'set_speed',
+                value: speedValue
+            };
+            console.log('📤 Speed message:', JSON.stringify(message));
+            console.log('✅ Speed command sent (mock)');
+        }
+
+        function sendBrightnessToRobot(value) {
+            const brightnessValue = Number(value);
+            console.log('💡 SENDING BRIGHTNESS TO ROBOT:', brightnessValue + '%');
+            const message = {
+                type: 'set_brightness',
+                value: brightnessValue
+            };
+            console.log('📤 Brightness message:', JSON.stringify(message));
+            console.log('✅ Brightness command sent (mock)');
+        }
+
+        // Setup event listeners
+        const speedSlider = document.getElementById('speedSlider');
+        const brightnessSlider = document.getElementById('brightnessSlider');
+        const speedValue = document.getElementById('speedValue');
+        const brightnessValue = document.getElementById('brightnessValue');
+
+        console.log('Elements found:', {
+            speedSlider: !!speedSlider,
+            brightnessSlider: !!brightnessSlider,
+            speedValue: !!speedValue,
+            brightnessValue: !!brightnessValue
+        });
+
+        if (speedSlider) {
+            console.log('✅ Speed slider found, adding event listener');
+            speedSlider.addEventListener('input', () => {
+                console.log('⚡ Speed slider input event fired:', speedSlider.value);
+                if (speedValue) {
+                    speedValue.textContent = speedSlider.value + '%';
+                }
+                sendSpeedToRobot(speedSlider.value);
+            });
+        } else {
+            console.error('❌ Speed slider not found!');
+        }
+
+        if (brightnessSlider) {
+            console.log('✅ Brightness slider found, adding event listener');
+            brightnessSlider.addEventListener('input', () => {
+                console.log('💡 Brightness slider input event fired:', brightnessSlider.value);
+                if (brightnessValue) {
+                    brightnessValue.textContent = brightnessSlider.value + '%';
+                }
+                sendBrightnessToRobot(brightnessSlider.value);
+            });
+        } else {
+            console.error('❌ Brightness slider not found!');
+        }
+
+        console.log('🎯 Test Complete - Move sliders and check console');
+    </script>
+</body>
+</html>

@@ -1,0 +1,230 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - IoT Robot Controller</title>
+    <link rel="stylesheet" href="{% static 'robot/css/style.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <!-- Dashboard Page -->
+    <div id="dashboardPage" class="page-view active">
+        <!-- Dashboard Header -->
+        <header class="dashboard-header">
+            <div class="header-content">
+                <div class="header-left">
+                    <a class="back-btn" id="backToControllerBtn" href="{% url 'robot_controller' %}">
+                        <i class="fas fa-arrow-left"></i>
+                        <span>Back to Controller</span>
+                    </a>
+                    <div class="page-title">
+                        <i class="fas fa-heartbeat"></i>
+                        <h1>Robot Dashboard</h1>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <div class="profile-dropdown" id="profileDropdownDashboard">
+                        <button class="profile-btn" id="profileBtnDashboard">
+                            <div class="profile-avatar">{{ request.user.username|slice:":1"|upper }}</div>
+                        </button>
+                        <div class="dropdown-menu" id="dropdownMenuDashboard">
+                            <a class="dropdown-item" href="{% url 'profile' %}">
+                                <i class="fas fa-user"></i>
+                                <span>Profile</span>
+                            </a>
+                            <a class="dropdown-item" href="{% url 'settings' %}">
+                                <i class="fas fa-cog"></i>
+                                <span>Settings</span>
+                            </a>
+                            <div class="dropdown-divider"></div>
+                            <a class="dropdown-item logout" id="logoutBtnDashboard" href="{% url 'logout' %}">
+                                <i class="fas fa-sign-out-alt"></i>
+                                <span>Sign Out</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Dashboard Main Content -->
+        <main class="dashboard-main">
+
+            <!-- ================= DEVICE SELECTOR SIDEBAR ================= -->
+            <aside class="device-sidebar">
+                <h3 class="device-title"><i class="fas fa-robot"></i> Devices</h3>
+
+                <div style="padding-top: 35px; padding-bottom: 35px;" class="device-list">
+
+                    <!-- Device 1 -->
+                    <button class="device-btn active" data-device="1">
+                        <i class="fas fa-microchip"></i>
+                        <span>Device 1</span>
+                    </button>
+                    
+                    <!-- Device 2 -->
+                    <button  class="device-btn" data-device="2">
+                        <i class="fas fa-microchip"></i>
+                        <span>Device 2</span>
+                    </button>
+
+                </div>
+            </aside>
+
+            <!-- ================= DEVICE DASHBOARD CONTENT ================= -->
+            <section class="device-dashboard">
+
+                <!-- DEVICE NAME -->
+                <h2 id="activeDeviceTitle" class="device-heading">
+                    Device 1 — Live Metrics
+                </h2>
+
+                <!-- METRICS GRID -->
+                <section class="metrics-grid">
+                    <div class="metric-card battery-card">
+                        <div class="metric-icon">
+                            <i class="fas fa-battery-three-quarters"></i>
+                        </div>
+                        <div class="metric-content">
+                            <div class="metric-value" id="batteryValue">85%</div>
+                            <div class="metric-label">Battery Level</div>
+                        </div>
+                    </div>
+
+                    <div class="metric-card cpu-card">
+                        <div class="metric-icon">
+                            <i class="fas fa-microchip"></i>
+                        </div>
+                        <div class="metric-content">
+                            <div class="metric-value" id="cpuValue">38%</div>
+                            <div class="metric-label">CPU Usage</div>
+                        </div>
+                    </div>
+
+                    <div class="metric-card temperature-card">
+                        <div class="metric-icon">
+                            <i class="fas fa-thermometer-half"></i>
+                        </div>
+                        <div class="metric-content">
+                            <div class="metric-value" id="temperatureValue">41°C</div>
+                            <div class="metric-label">Temperature</div>
+                        </div>
+                    </div>
+
+                    <div class="metric-card signal-card">
+                        <div class="metric-icon">
+                            <i class="fas fa-wifi"></i>
+                        </div>
+                        <div class="metric-content">
+                            <div class="metric-value" id="signalValue">93%</div>
+                            <div class="metric-label">Signal Strength</div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TABS -->
+                <section class="tab-section">
+                    <div class="tab-nav">
+                        <button class="tab-btn active" data-tab="battery">Battery & Power</button>
+                        <button class="tab-btn" data-tab="performance">Performance</button>
+                        <button class="tab-btn" data-tab="network">Network</button>
+                    </div>
+
+                    <!-- TAB CONTENT -->
+                    <div class="tab-content">
+
+                        <!-- BATTERY TAB -->
+                        <div class="tab-panel active" id="battery-panel">
+                            <h3>Battery Level Over Time</h3>
+                            <div class="chart-container" style="position: relative; height: 400px;">
+                                <canvas id="batteryChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- PERFORMANCE TAB -->
+                        <div class="tab-panel" id="performance-panel">
+                            <div class="performance-metrics">
+                                <h3>Performance Metrics</h3>
+
+                                <div class="metric-rows">
+                                    <div class="metric-row">
+                                        <span class="metric-name">CPU Usage</span>
+                                        <div class="metric-bar">
+                                            <div class="metric-fill" id="cpuBar"></div>
+                                        </div>
+                                        <span id="cpuPercent">38%</span>
+                                    </div>
+
+                                    <div class="metric-row">
+                                        <span class="metric-name">Memory Usage</span>
+                                        <div class="metric-bar">
+                                            <div class="metric-fill" id="memoryBar"></div>
+                                        </div>
+                                        <span id="memoryPercent">64%</span>
+                                    </div>
+
+                                    <div class="metric-row">
+                                        <span class="metric-name">Storage</span>
+                                        <div class="metric-bar">
+                                            <div class="metric-fill" id="storageBar"></div>
+                                        </div>
+                                        <span id="storagePercent">23%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- NETWORK TAB -->
+                        <div class="tab-panel" id="network-panel">
+                            <div class="network-info">
+                                <h3>Network Status</h3>
+
+                                <div class="network-stats">
+                                    <div class="network-stat">
+                                        <div class="stat-icon"><i class="fas fa-wifi"></i></div>
+                                        <div class="stat-info">
+                                            <div class="stat-label">Signal</div>
+                                            <div id="networkSignal" class="stat-value">93%</div>
+                                        </div>
+                                    </div>
+
+                                    <div class="network-stat">
+                                        <div class="stat-icon"><i class="fas fa-download"></i></div>
+                                        <div class="stat-info">
+                                            <div class="stat-label">Download</div>
+                                            <div id="networkDownload" class="stat-value">125 Mbps</div>
+                                        </div>
+                                    </div>
+
+                                    <div class="network-stat">
+                                        <div class="stat-icon"><i class="fas fa-upload"></i></div>
+                                        <div class="stat-info">
+                                            <div class="stat-label">Upload</div>
+                                            <div id="networkUpload" class="stat-value">32 Mbps</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+
+                    </div>
+                </section>
+
+            </section>
+        </main>
+    </div>
+
+    <div class="toast-notification hidden" id="toastNotification">
+        <div class="toast-content">
+            <i class="toast-icon"></i>
+            <span class="toast-message"></span>
+        </div>
+    </div>
+
+    <script src="{% static 'robot/js/app.js' %}?v=2"></script>
+</body>
+</html>
