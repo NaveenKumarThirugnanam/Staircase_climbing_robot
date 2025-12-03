@@ -301,6 +301,35 @@ class TelemetryConsumer(AsyncWebsocketConsumer):
                 "timestamp": timezone.now().isoformat()
             })
         
+        # ===== VIDEO FRAME FROM ROBOT =====
+        elif msg_type == "video_frame":
+            print(f"\n🎥 VIDEO FRAME from {self.device_id}")
+            frame_data = data.get("frame_data")  # Base64 encoded image
+            timestamp = data.get("timestamp", timezone.now().isoformat())
+            
+            if frame_data:
+                print(f"   Frame size: {len(frame_data)} bytes")
+                print(f"   Broadcasting to {len(connected_devices['websites'])} website(s)...")
+                
+                # Send acknowledgment to robot
+                await self.send(json.dumps({
+                    "type": "ack",
+                    "original_type": "video_frame",
+                    "status": "received",
+                    "message": "Video frame received"
+                }))
+                
+                # Broadcast video frame to all connected websites
+                await self.broadcast_to_websites({
+                    "type": "video_frame",
+                    "device_id": self.device_id,
+                    "frame_data": frame_data,
+                    "timestamp": timestamp
+                })
+                print(f"   ✅ Video frame broadcasted to websites")
+            else:
+                print(f"   ❌ No frame data in message")
+        
         # ===== ROBOT STATUS UPDATES =====
         elif msg_type == "status":
             status = data.get("status")

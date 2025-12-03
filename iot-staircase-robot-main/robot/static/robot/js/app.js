@@ -21,6 +21,13 @@ socket.onmessage = (event) => {
             return;
         }
         
+        // ===== HANDLE VIDEO FRAMES =====
+        if (data.type === "video_frame") {
+            console.log(`🎥 Video frame received`);
+            displayVideoFrame(data);
+            return;
+        }
+        
         // ===== HANDLE TELEMETRY UPDATES FROM SERVER =====
         if (data.type === "telemetry_update") {
             console.log(`📡 Telemetry update from ${data.device_id}:`, {
@@ -86,6 +93,48 @@ function sendControlMessage(payload) {
         // console.log("WS control →", withTs);
     } catch (err) {
         console.warn("WS send error (control)", err, payload);
+    }
+}
+
+// ===== VIDEO STREAMING HANDLER =====
+function displayVideoFrame(data) {
+    try {
+        const videoCanvas = document.getElementById('videoCanvas');
+        if (!videoCanvas) {
+            console.warn('⚠️  Video canvas not found');
+            return;
+        }
+        
+        const ctx = videoCanvas.getContext('2d');
+        
+        // If data contains base64 image
+        if (data.frame_data) {
+            const img = new Image();
+            img.onload = function() {
+                // Set canvas size to match image
+                videoCanvas.width = img.width;
+                videoCanvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+                console.log('🎥 Video frame displayed');
+            };
+            img.onerror = function() {
+                console.error('❌ Failed to load video frame');
+            };
+            img.src = 'data:image/jpeg;base64,' + data.frame_data;
+        }
+        // If data contains raw image data
+        else if (data.image_data) {
+            const img = new Image();
+            img.onload = function() {
+                videoCanvas.width = img.width;
+                videoCanvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+                console.log('🎥 Video frame displayed');
+            };
+            img.src = data.image_data;
+        }
+    } catch (err) {
+        console.error('❌ Error displaying video frame:', err);
     }
 }
 
@@ -245,28 +294,34 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function sendSpeedToRobot(value) {
         const speedValue = Number(value);
-        console.log('⚡ SENDING SPEED TO ROBOT:', speedValue + '%');
-        console.log('⚡ Calling sendControlMessage with:', {type: 'set_speed', value: speedValue});
+        console.log('⚡⚡⚡ SPEED SLIDER CHANGED:', speedValue + '%');
+        
         const message = {
             type: 'set_speed',
-            value: speedValue
+            value: speedValue,
+            timestamp: new Date().toISOString(),
+            device: 'website'
         };
-        console.log('📤 Speed message:', JSON.stringify(message));
+        
+        console.log('📤 Sending speed data via WebSocket:', message);
         sendControlMessage(message);
-        console.log('⚡ sendControlMessage completed for speed');
+        console.log('✅ Speed data sent');
     }
 
     function sendBrightnessToRobot(value) {
         const brightnessValue = Number(value);
-        console.log('💡 SENDING BRIGHTNESS TO ROBOT:', brightnessValue + '%');
-        console.log('💡 Calling sendControlMessage with:', {type: 'set_brightness', value: brightnessValue});
+        console.log('💡💡💡 BRIGHTNESS SLIDER CHANGED:', brightnessValue + '%');
+        
         const message = {
             type: 'set_brightness',
-            value: brightnessValue
+            value: brightnessValue,
+            timestamp: new Date().toISOString(),
+            device: 'website'
         };
-        console.log('📤 Brightness message:', JSON.stringify(message));
+        
+        console.log('📤 Sending brightness data via WebSocket:', message);
         sendControlMessage(message);
-        console.log('💡 sendControlMessage completed for brightness');
+        console.log('✅ Brightness data sent');
     }
 
     // Initialize the application

@@ -9,7 +9,16 @@ import json
 import random
 import websockets
 import sys
+import base64
 from datetime import datetime
+from io import BytesIO
+
+# Optional: Video/Image support
+try:
+    from PIL import Image, ImageDraw
+    HAS_PIL = True
+except ImportError:
+    HAS_PIL = False
 
 
 class SimulatedRobot:
@@ -137,9 +146,65 @@ class SimulatedRobot:
             print(f"❌ Error sending telemetry: {e}")
             self.running = False
     
+    async def send_video_frame_loop(self):
+        """Send simulated video frames periodically"""
+        try:
+            frame_count = 0
+            while self.running and self.websocket:
+                await self.send_video_frame(frame_count)
+                frame_count += 1
+                # Send every 2 seconds (0.5 FPS)
+                await asyncio.sleep(2)
+        except Exception as e:
+            print(f"❌ Error in video loop: {e}")
+            self.running = False
+    
+    async def send_video_frame(self, frame_num):
+        """Send a simulated video frame to server"""
+        try:
+            if not HAS_PIL:
+                print("⚠️  PIL not installed, skipping video frame (install with: pip install Pillow)")
+                return
+            
+            # Create a simulated camera frame
+            img = Image.new('RGB', (640, 480), color='black')
+            draw = ImageDraw.Draw(img)
+            
+            # Add some visual elements
+            draw.rectangle([50, 50, 590, 430], outline='green', width=3)
+            draw.text((270, 10), f"Frame #{frame_num}", fill='cyan')
+            draw.text((270, 450), f"Robot Camera - {datetime.now().strftime('%H:%M:%S')}", fill='cyan')
+            
+            # Add crosshair
+            draw.line([(320, 200), (320, 280)], fill='green', width=2)
+            draw.line([(240, 240), (400, 240)], fill='green', width=2)
+            
+            # Convert image to base64 JPEG
+            buffer = BytesIO()
+            img.save(buffer, format='JPEG', quality=70)
+            frame_data = base64.b64encode(buffer.getvalue()).decode('utf-8')
+            
+            message = {
+                "type": "video_frame",
+                "device_id": self.device_id,
+                "frame_data": frame_data,
+                "frame_number": frame_num,
+                "timestamp": datetime.now().isoformat()
+            }
+            
+            await self.websocket.send(json.dumps(message))
+            print(f"🎥 Video frame #{frame_num} sent ({len(frame_data)} bytes)")
+            
+        except Exception as e:
+            print(f"❌ Error sending video frame: {e}")
+    
     async def run(self):
         """Main run loop"""
         await self.connect()
+        
+        # Start video frame sending if PIL is available
+        if HAS_PIL:
+            asyncio.create_task(self.send_video_frame_loop())
         
         # Keep running until interrupted
         while self.running:
