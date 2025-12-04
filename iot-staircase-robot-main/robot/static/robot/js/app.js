@@ -1,6 +1,89 @@
 // WebSocket for telemetry and control (global scope)
 const socket = new WebSocket("ws://127.0.0.1:8000/ws/telemetry/");
 
+// WebSocket event handlers
+socket.onopen = () => {
+    console.log("✅ Main WebSocket connected");
+};
+
+socket.onmessage = (event) => {
+    try {
+        const data = JSON.parse(event.data);
+        console.log("📨 WebSocket message:", data);
+        
+        // Handle video frames
+        if (data.type === "video_frame" && data.frame_data) {
+            displayVideoFrame(data);
+        }
+        
+        // Handle telemetry updates
+        if (data.type === "telemetry_update") {
+            updateTelemetryDisplay(data);
+        }
+        
+    } catch (err) {
+        console.error("❌ WebSocket message error:", err);
+    }
+};
+
+socket.onerror = (error) => {
+    console.error("❌ WebSocket error:", error);
+};
+
+socket.onclose = () => {
+    console.warn("⚠️ WebSocket closed. Reconnecting in 3s...");
+    setTimeout(() => window.location.reload(), 3000);
+};
+
+// Function to display video frames
+function displayVideoFrame(data) {
+    try {
+        const videoCanvas = document.getElementById('videoCanvas');
+        const videoFrame = document.getElementById('videoFrame');
+        
+        if (videoFrame) {
+            // Display in img element
+            videoFrame.src = `data:image/jpeg;base64,${data.frame_data}`;
+            videoFrame.style.display = 'block';
+            console.log("🎥 Video frame displayed in img");
+        } else if (videoCanvas) {
+            // Display in canvas element
+            const ctx = videoCanvas.getContext('2d');
+            const img = new Image();
+            img.onload = () => {
+                videoCanvas.width = img.width;
+                videoCanvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+            };
+            img.src = `data:image/jpeg;base64,${data.frame_data}`;
+            console.log("🎥 Video frame displayed in canvas");
+        }
+    } catch (err) {
+        console.error("❌ Error displaying video frame:", err);
+    }
+}
+
+// Function to update telemetry display
+function updateTelemetryDisplay(data) {
+    try {
+        if (data.battery !== undefined) {
+            const batteryLevel = document.getElementById("batteryLevel");
+            const batteryPercentage = document.getElementById("batteryPercentage");
+            if (batteryLevel) batteryLevel.style.width = `${data.battery}%`;
+            if (batteryPercentage) batteryPercentage.textContent = `${data.battery}%`;
+        }
+        
+        if (data.signal !== undefined) {
+            const signalStrength = document.getElementById("signalStrength");
+            if (signalStrength) signalStrength.textContent = `${Math.round(data.signal)}%`;
+        }
+        
+        console.log("📊 Telemetry updated");
+    } catch (err) {
+        console.error("❌ Error updating telemetry:", err);
+    }
+}
+
 // Simple throttling for control messages (per type)
 const controlSendState = {
     lastSentAt: {},

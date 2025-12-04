@@ -1,7 +1,9 @@
 """
-Simulated Robot Client for WebSocket Communication
-Connects to the Django WebSocket server and sends telemetry data
-Also receives control commands from the server
+Robot Client with Laptop Camera Support
+Connects to the Django WebSocket server and:
+- Sends real video frames from laptop camera
+- Sends telemetry data
+- Receives control commands from the server
 """
 
 import asyncio
@@ -12,8 +14,18 @@ import sys
 import base64
 from datetime import datetime
 from io import BytesIO
+import time
 
-# Optional: Video/Image support
+# OpenCV for camera capture
+try:
+    import cv2
+    HAS_OPENCV = True
+    print("✅ OpenCV available for camera capture")
+except ImportError:
+    HAS_OPENCV = False
+    print("⚠️  OpenCV not available. Install with: pip install opencv-python")
+
+# Optional: PIL for fallback
 try:
     from PIL import Image, ImageDraw
     HAS_PIL = True
@@ -22,7 +34,7 @@ except ImportError:
 
 
 class SimulatedRobot:
-    def __init__(self, server_url, device_id="robot_01"):
+    def __init__(self, server_url, device_id="robot_01", use_camera=True):
         self.server_url = server_url
         self.device_id = device_id
         self.websocket = None
@@ -31,10 +43,17 @@ class SimulatedRobot:
         self.cpu = 45.0
         self.temperature = 35.0
         self.signal = 90.0
+        self.use_camera = use_camera and HAS_OPENCV
+        self.camera = None
+        self.frame_count = 0
         
     async def connect(self):
         """Connect to WebSocket server"""
         try:
+            # Initialize camera if requested
+            if self.use_camera:
+                self.init_camera()
+            
             # Connect with device_id parameter to identify as robot
             url = f"{self.server_url}?device_id={self.device_id}"
             print(f"🤖 Connecting robot to {url}...")
@@ -51,6 +70,28 @@ class SimulatedRobot:
         except Exception as e:
             print(f"❌ Connection failed: {e}")
             self.running = False
+    
+    def init_camera(self):
+        """Initialize laptop camera"""
+        try:
+            print("📷 Initializing laptop camera...")
+            self.camera = cv2.VideoCapture(0)  # 0 = default camera
+            
+            if not self.camera.isOpened():
+                print("❌ Failed to open camera")
+                self.use_camera = False
+                return
+            
+            # Set camera properties for better performance
+            self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+            self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+            self.camera.set(cv2.CAP_PROP_FPS, 30)
+            
+            print("✅ Camera initialized successfully")
+            
+        except Exception as e:
+            print(f"❌ Camera initialization failed: {e}")
+            self.use_camera = False
     
     async def receive_commands(self):
         """Receive control commands from server"""
@@ -147,33 +188,80 @@ class SimulatedRobot:
             self.running = False
     
     async def send_video_frame_loop(self):
-        """Send simulated video frames periodically"""
+        """Send video frames from camera periodically"""
         try:
-            frame_count = 0
             while self.running and self.websocket:
-                await self.send_video_frame(frame_count)
-                frame_count += 1
-                # Send every 2 seconds (0.5 FPS)
-                await asyncio.sleep(2)
+                await self.send_video_frame()
+                # Send at ~10 FPS (adjust as needed)
+                await asyncio.sleep(0.1)
         except Exception as e:
             print(f"❌ Error in video loop: {e}")
             self.running = False
     
-    async def send_video_frame(self, frame_num):
-        """Send a simulated video frame to server"""
+    async def send_video_frame(self):
+        """Capture and send a real video frame from camera"""
+        try:
+            if self.use_camera and self.camera and self.camera.isOpened():
+                # Capture frame from camera
+                ret, frame = self.camera.read()
+                
+                if not ret:
+                    print("❌ Failed to capture frame")
+                    return
+                
+                # Add timestamp overlay
+                timestamp_text = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                cv2.putText(frame, timestamp_text, (10, 30), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                
+                # Add frame counter
+                cv2.putText(frame, f"Frame: {self.frame_count}", (10, 60), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                
+                # Add device ID
+                cv2.putText(frame, f"Device: {self.device_id}", (10, 90), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                
+                # Encode frame as JPEG
+                _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
+                frame_data = base64.b64encode(buffer).decode('utf-8')
+                
+                message = {
+                    "type": "video_frame",
+                    "device_id": self.device_id,
+                    "frame_data": frame_data,
+                    "frame_number": self.frame_count,
+                    "timestamp": datetime.now().isoformat()
+                }
+                
+                await self.websocket.send(json.dumps(message))
+                
+                if self.frame_count % 30 == 0:  # Log every 30 frames
+                    print(f"🎥 Frame #{self.frame_count} sent ({len(frame_data)} bytes)")
+                
+                self.frame_count += 1
+                
+            elif HAS_PIL:
+                # Fallback to simulated frame if camera not available
+                await self.send_simulated_frame()
+            
+        except Exception as e:
+            print(f"❌ Error sending video frame: {e}")
+    
+    async def send_simulated_frame(self):
+        """Send a simulated video frame (fallback)"""
         try:
             if not HAS_PIL:
-                print("⚠️  PIL not installed, skipping video frame (install with: pip install Pillow)")
                 return
             
             # Create a simulated camera frame
             img = Image.new('RGB', (640, 480), color='black')
             draw = ImageDraw.Draw(img)
             
-            # Add some visual elements
+            # Add visual elements
             draw.rectangle([50, 50, 590, 430], outline='green', width=3)
-            draw.text((270, 10), f"Frame #{frame_num}", fill='cyan')
-            draw.text((270, 450), f"Robot Camera - {datetime.now().strftime('%H:%M:%S')}", fill='cyan')
+            draw.text((270, 10), f"SIMULATED - Frame #{self.frame_count}", fill='cyan')
+            draw.text((180, 450), f"Robot Camera - {datetime.now().strftime('%H:%M:%S')}", fill='cyan')
             
             # Add crosshair
             draw.line([(320, 200), (320, 280)], fill='green', width=2)
@@ -188,23 +276,28 @@ class SimulatedRobot:
                 "type": "video_frame",
                 "device_id": self.device_id,
                 "frame_data": frame_data,
-                "frame_number": frame_num,
+                "frame_number": self.frame_count,
                 "timestamp": datetime.now().isoformat()
             }
             
             await self.websocket.send(json.dumps(message))
-            print(f"🎥 Video frame #{frame_num} sent ({len(frame_data)} bytes)")
+            
+            if self.frame_count % 30 == 0:
+                print(f"🎥 Simulated frame #{self.frame_count} sent")
+            
+            self.frame_count += 1
             
         except Exception as e:
-            print(f"❌ Error sending video frame: {e}")
+            print(f"❌ Error sending simulated frame: {e}")
     
     async def run(self):
         """Main run loop"""
         await self.connect()
         
-        # Start video frame sending if PIL is available
-        if HAS_PIL:
+        # Start video frame sending if camera or PIL is available
+        if self.use_camera or HAS_PIL:
             asyncio.create_task(self.send_video_frame_loop())
+            print(f"📹 Video streaming started ({'Camera' if self.use_camera else 'Simulated'})")
         
         # Keep running until interrupted
         while self.running:
@@ -213,21 +306,35 @@ class SimulatedRobot:
     async def close(self):
         """Close connection"""
         self.running = False
+        
+        # Release camera
+        if self.camera:
+            self.camera.release()
+            print("📷 Camera released")
+        
+        # Close WebSocket
         if self.websocket:
             await self.websocket.close()
+        
         print("🔌 Robot disconnected")
 
 
 async def main():
-    """Run simulated robot"""
+    """Run robot client with camera"""
     # Configuration
     server_url = "ws://localhost:8000/ws/telemetry/"
     device_id = "robot_01"
+    use_camera = True
     
+    # Parse command line arguments
     if len(sys.argv) > 1:
         device_id = sys.argv[1]
     
-    robot = SimulatedRobot(server_url, device_id)
+    if len(sys.argv) > 2 and sys.argv[2].lower() == "nocamera":
+        use_camera = False
+        print("📷 Camera disabled by command line argument")
+    
+    robot = SimulatedRobot(server_url, device_id, use_camera=use_camera)
     
     try:
         await robot.run()
@@ -239,12 +346,18 @@ async def main():
 if __name__ == "__main__":
     print("""
     ╔════════════════════════════════════════╗
-    ║   Simulated Robot Client               ║
+    ║   Robot Client with Camera Support     ║
     ║   Connects to Django WebSocket Server  ║
     ╚════════════════════════════════════════╝
     
-    Usage: python robot_client.py [device_id]
-    Example: python robot_client.py robot_01
+    Usage: python robot_client.py [device_id] [nocamera]
+    
+    Examples:
+      python robot_client.py robot_01          # Use laptop camera
+      python robot_client.py robot_01 nocamera # Use simulated video
+    
+    Requirements:
+      pip install opencv-python websockets
     
     """)
     
