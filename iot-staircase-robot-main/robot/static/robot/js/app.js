@@ -1,70 +1,5 @@
-// ===== GLOBAL WEBSOCKET CONNECTION =====
-// Use dynamic URL to work in production
-const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-const host = window.location.host;
-const socket = new WebSocket(`${protocol}//${host}/ws/telemetry/`);
-
-console.log(`🔌 WebSocket URL: ${protocol}//${host}/ws/telemetry/`);
-
-socket.onopen = () => {
-    console.log("✅ WebSocket connected");
-};
-
-socket.onmessage = (event) => {
-    try {
-        const data = JSON.parse(event.data);
-        console.log("📨 WebSocket message received:", data);
-        
-        // Handle control acknowledgments
-        if (data.type === "ack") {
-            console.log(`✅ ACK: ${data.original_type} - ${data.message || 'OK'}`);
-            return;
-        }
-        
-        // ===== HANDLE VIDEO FRAMES =====
-        if (data.type === "video_frame") {
-            console.log(`🎥 Video frame received`);
-            displayVideoFrame(data);
-            return;
-        }
-        
-        // ===== HANDLE TELEMETRY UPDATES FROM SERVER =====
-        if (data.type === "telemetry_update") {
-            console.log(`📡 Telemetry update from ${data.device_id}:`, {
-                battery: data.battery,
-                cpu: data.cpu,
-                temperature: data.temperature,
-                signal: data.signal
-            });
-            
-            // Update dashboard with telemetry data
-            updateDashboardFromTelemetry(data);
-            return;
-        }
-        
-        // ===== HANDLE ROBOT STATUS UPDATES =====
-        if (data.type === "robot_status") {
-            console.log(`ℹ️  Robot status from ${data.device_id}: ${data.status}`);
-            
-            // Update robot connection status if needed
-            if (data.status === "disconnected") {
-                showModernToast(`Robot ${data.device_id} disconnected`, 'error');
-            }
-            return;
-        }
-        
-    } catch (err) {
-        console.error("❌ Error parsing WebSocket message:", err, event.data);
-    }
-};
-
-socket.onerror = (err) => {
-    console.error("❌ WebSocket error:", err);
-};
-
-socket.onclose = () => {
-    console.warn("⚠️  WebSocket closed");
-};
+// WebSocket for telemetry and control (global scope)
+const socket = new WebSocket("ws://127.0.0.1:8000/ws/telemetry/");
 
 // Simple throttling for control messages (per type)
 const controlSendState = {
@@ -93,48 +28,6 @@ function sendControlMessage(payload) {
         // console.log("WS control →", withTs);
     } catch (err) {
         console.warn("WS send error (control)", err, payload);
-    }
-}
-
-// ===== VIDEO STREAMING HANDLER =====
-function displayVideoFrame(data) {
-    try {
-        const videoCanvas = document.getElementById('videoCanvas');
-        if (!videoCanvas) {
-            console.warn('⚠️  Video canvas not found');
-            return;
-        }
-        
-        const ctx = videoCanvas.getContext('2d');
-        
-        // If data contains base64 image
-        if (data.frame_data) {
-            const img = new Image();
-            img.onload = function() {
-                // Set canvas size to match image
-                videoCanvas.width = img.width;
-                videoCanvas.height = img.height;
-                ctx.drawImage(img, 0, 0);
-                console.log('🎥 Video frame displayed');
-            };
-            img.onerror = function() {
-                console.error('❌ Failed to load video frame');
-            };
-            img.src = 'data:image/jpeg;base64,' + data.frame_data;
-        }
-        // If data contains raw image data
-        else if (data.image_data) {
-            const img = new Image();
-            img.onload = function() {
-                videoCanvas.width = img.width;
-                videoCanvas.height = img.height;
-                ctx.drawImage(img, 0, 0);
-                console.log('🎥 Video frame displayed');
-            };
-            img.src = data.image_data;
-        }
-    } catch (err) {
-        console.error('❌ Error displaying video frame:', err);
     }
 }
 
@@ -293,35 +186,21 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function sendSpeedToRobot(value) {
-        const speedValue = Number(value);
-        console.log('⚡⚡⚡ SPEED SLIDER CHANGED:', speedValue + '%');
-        
-        const message = {
-            type: 'set_speed',
-            value: speedValue,
-            timestamp: new Date().toISOString(),
-            device: 'website'
-        };
-        
-        console.log('📤 Sending speed data via WebSocket:', message);
-        sendControlMessage(message);
-        console.log('✅ Speed data sent');
+        console.log('Speed set to:', value);
+        sendControlMessage({
+            type: 'set',
+            name: 'speed',
+            value: Number(value)
+        });
     }
 
     function sendBrightnessToRobot(value) {
-        const brightnessValue = Number(value);
-        console.log('💡💡💡 BRIGHTNESS SLIDER CHANGED:', brightnessValue + '%');
-        
-        const message = {
-            type: 'set_brightness',
-            value: brightnessValue,
-            timestamp: new Date().toISOString(),
-            device: 'website'
-        };
-        
-        console.log('📤 Sending brightness data via WebSocket:', message);
-        sendControlMessage(message);
-        console.log('✅ Brightness data sent');
+        console.log('Brightness set to:', value);
+        sendControlMessage({
+            type: 'set',
+            name: 'brightness',
+            value: Number(value)
+        });
     }
 
     // Initialize the application
@@ -570,11 +449,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         // Sliders
-        console.log('🔧 Setting up sliders - speedSlider:', !!elements.speedSlider, 'brightnessSlider:', !!elements.brightnessSlider);
         if (elements.speedSlider) {
-            console.log('✅ Speed slider found, adding event listener');
             elements.speedSlider.addEventListener('input', () => {
-                console.log('⚡ Speed slider input event fired:', elements.speedSlider.value);
                 if (elements.speedValue) {
                     elements.speedValue.textContent = elements.speedSlider.value + '%';
                 }
@@ -597,9 +473,7 @@ document.addEventListener('DOMContentLoaded', function () {
             updateRangeFill(elements.speedSlider);
         }
         if (elements.brightnessSlider) {
-            console.log('✅ Brightness slider found, adding event listener');
             elements.brightnessSlider.addEventListener('input', () => {
-                console.log('💡 Brightness slider input event fired:', elements.brightnessSlider.value);
                 if (elements.brightnessValue) {
                     elements.brightnessValue.textContent = elements.brightnessSlider.value + '%';
                 }
@@ -1725,58 +1599,6 @@ document.addEventListener('DOMContentLoaded', function () {
         // Controller sidebar legacy values remain handled in simulation
     }
 
-    // ===== UPDATE DASHBOARD FROM TELEMETRY (from WebSocket server) =====
-    function updateDashboardFromTelemetry(telemetryData) {
-        console.log("📊 Updating dashboard with telemetry:", telemetryData);
-        
-        // Extract data
-        const deviceId = telemetryData.device_id || "1";
-        const battery = telemetryData.battery;
-        const cpu = telemetryData.cpu;
-        const temperature = telemetryData.temperature;
-        const signal = telemetryData.signal;
-        
-        // Update app state if this is the active device
-        if (deviceId === appState.activeDevice || deviceId === "1") {
-            appState.devices[deviceId] = {
-                ...appState.devices[deviceId],
-                battery: battery,
-                cpu: cpu,
-                temperature: temperature,
-                signal: signal
-            };
-        }
-        
-        // Update controller sidebar (if visible)
-        if (elements.batteryLevel) {
-            elements.batteryLevel.style.width = `${battery}%`;
-        }
-        if (elements.batteryPercentage) {
-            elements.batteryPercentage.textContent = `${Math.round(battery)}%`;
-        }
-        if (elements.signalStrength) {
-            elements.signalStrength.textContent = `${Math.round(signal)}%`;
-        }
-        
-        // Update dashboard if visible
-        if (appState.currentPage === 'dashboard') {
-            updateActiveDeviceUI();
-        }
-        
-        // Update metric values if dashboard page
-        const batteryEl = document.getElementById("metricBattery");
-        const cpuEl = document.getElementById("metricCpu");
-        const tempEl = document.getElementById("metricTemperature");
-        const signalEl = document.getElementById("metricSignal");
-        
-        if (batteryEl) batteryEl.textContent = `${Math.round(battery)}%`;
-        if (cpuEl) cpuEl.textContent = `${Math.round(cpu)}%`;
-        if (tempEl) tempEl.textContent = `${Math.round(temperature)}°C`;
-        if (signalEl) signalEl.textContent = `${Math.round(signal)}%`;
-        
-        console.log("✅ Dashboard updated with real telemetry data");
-    }
-
     // Enhanced status entrance animation
     function animateStatusEntrance() {
         const statusElements = [elements.positionX, elements.positionY, elements.cameraX, elements.cameraY];
@@ -1998,6 +1820,55 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Initialize the enhanced application
     init();
+
+    // === LIVE TELEMETRY WEBSOCKET ===
+    const telemetrySocket = new WebSocket("ws://127.0.0.1:8000/ws/telemetry/");
+
+    telemetrySocket.onopen = () => {
+        console.log("✅ Connected to Telemetry WebSocket");
+    };
+
+    telemetrySocket.onmessage = (event) => {
+        try {
+            const data = JSON.parse(event.data);
+            console.log("📡 Telemetry update:", data);
+
+            // Update dashboard values dynamically
+            if (data.battery !== undefined) {
+                const batteryEl = document.getElementById("metricBattery");
+                const batteryLevel = document.getElementById("batteryLevel");
+                const batteryPercentage = document.getElementById("batteryPercentage");
+
+                if (batteryEl) batteryEl.textContent = `${data.battery}%`;
+                if (batteryLevel) batteryLevel.style.width = `${data.battery}%`;
+                if (batteryPercentage) batteryPercentage.textContent = `${data.battery}%`;
+            }
+
+            if (data.cpu !== undefined) {
+                const cpuEl = document.getElementById("metricCpu");
+                if (cpuEl) cpuEl.textContent = `${data.cpu}%`;
+            }
+
+            if (data.temperature !== undefined) {
+                const tempEl = document.getElementById("metricTemperature");
+                if (tempEl) tempEl.textContent = `${data.temperature}°C`;
+            }
+
+            if (data.signal !== undefined) {
+                const signalEl = document.getElementById("metricSignal");
+                if (signalEl) signalEl.textContent = `${data.signal}%`;
+            }
+
+        } catch (err) {
+            console.error("❌ Error parsing telemetry data:", err);
+        }
+    };
+
+    telemetrySocket.onclose = () => {
+        console.warn("⚠️ Telemetry WebSocket closed. Reconnecting in 3s...");
+        setTimeout(() => window.location.reload(), 3000);
+    };
+
 
     console.log('🎉 Modern IoT Robot Controller fully loaded and ready!');
 
