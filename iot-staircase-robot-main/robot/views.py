@@ -16,6 +16,7 @@ def login_view(request):
     if request.method == 'POST':
         identifier = request.POST.get('username')
         password = request.POST.get('password')
+        remember_me = request.POST.get('remember') is not None  # Checkbox is present if checked
         user = None
         if identifier:
             # Try username directly
@@ -31,6 +32,17 @@ def login_view(request):
                     user = None
         if user is not None:
             login(request, user)
+            
+            # Handle "Remember Me" - set session expiry and persistence
+            if remember_me:
+                # Session expires in 30 days (2592000 seconds)
+                request.session.set_expiry(2592000)
+                # Make session persistent across browser closing
+                request.session.set_cookie_on_response = True
+            else:
+                # Session expires when browser closes (default - 0 means expire on browser close)
+                request.session.set_expiry(0)
+            
             loading_url = reverse('robot_loading') + '?view=controller'
             return redirect(loading_url)
         else:

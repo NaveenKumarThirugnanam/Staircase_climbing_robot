@@ -1,3 +1,10 @@
+.range.range-success.styled-range {
+    background: linear-gradient(
+        90deg,
+        #06B6D4 var(--value, 50%),
+        #ddd var(--value, 50%)
+    ) !important;
+}
 :root {
   /* Primitive Color Tokens */
   --color-white: rgba(255, 255, 255, 1);
@@ -892,13 +899,16 @@ select.form-control {
 .robot-icon-large {
     position: relative;
     display: inline-block;
+    z-index: 10;
 }
 
 .robot-icon-large .fas {
-    font-size: 5rem;
+    font-size: 4rem;
     color: white;
     display: block;
     animation: robotPulse 3s ease-in-out infinite;
+    text-shadow: 0 0 15px rgba(255, 255, 255, 0.3), 0 0 25px rgba(79, 70, 229, 0.2);
+    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.2));
 }
 
 .robot-pulse {
@@ -948,10 +958,11 @@ select.form-control {
 
 .connection-lines {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    top: 50%;
+    left: 50%;
+    width: 100px;
+    height: 100px;
+    transform: translate(-50%, -50%);
 }
 
 .line {
@@ -973,8 +984,8 @@ select.form-control {
     width: 60px;
     height: 2px;
     top: 50%;
-    right: -30px;
-    transform: translateY(-50%);
+    left: 50%;
+    transform: translate(-50%, -50%);
     animation-delay: 1s;
 }
 
@@ -2505,7 +2516,7 @@ select.form-control {
     flex-direction: column;
     justify-content: center;
     align-items: stretch;
-    width: 300px;
+    width: 350px;
     padding: 20px;
     gap: 28px;
     background: var(--color-surface);
@@ -2544,23 +2555,31 @@ select.form-control {
 .styled-range {
     width: 100%;
     height: 6px;
-    border-radius: 5px;
-    background: #d8d8d8;
+    border-radius: 6px;
+    background: linear-gradient(
+        90deg,
+        #06B6D4 var(--value, 50%),
+        #ddd var(--value, 50%)
+    ) !important;
     appearance: none;
     outline: none;
+    padding: 8px 0; /* room for 20px thumb to avoid clipping */
+    overflow: visible;
+    transition: background 0.15s ease;
 }
 
 .styled-range::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
     background: #06B6D4;
     border: 2px solid #ffffff;
     border-radius: 50%;
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(6, 182, 212, 0.35);
+    box-shadow: 0 2px 6px rgba(6, 182, 212, 0.35);
     transition: transform 0.15s ease;
+    margin-top: -6px; /* vertically center on 6px track for 18px thumb */
 }
 
 .styled-range::-webkit-slider-thumb:hover {
@@ -2568,13 +2587,13 @@ select.form-control {
 }
 
 .styled-range::-moz-range-thumb {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
     background: #06B6D4;
     border: 2px solid #ffffff;
     border-radius: 50%;
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(6, 182, 212, 0.35);
+    box-shadow: 0 2px 6px rgba(6, 182, 212, 0.35);
 }
 
 .slider-group span {
@@ -2584,32 +2603,93 @@ select.form-control {
     color: var(--color-text-secondary);
 }
 
-/* DaisyUI range slider override to requested cyan */
+/* ————————————————————————————————
+   FORCE range-accent TO MATCH range-success
+   but using your cyan #06B6D4
+——————————————————————————————— */
+
 .range.range-accent {
     accent-color: #06B6D4 !important;
+    /* Dynamic Cyan Track Fill (driven by --value) */
+    --value: 50%;
+    background: linear-gradient(
+        90deg,
+        #06B6D4 var(--value),
+        #ddd var(--value)
+    ) !important;
 }
 
+/* THUMB (circle) */
 .range.range-accent::-webkit-slider-thumb {
-    background-color: #06B6D4;
-    border: 2px solid #fff;
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    background-color: #06B6D4 !important;
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    cursor: pointer;
     box-shadow: 0 2px 8px rgba(6, 182, 212, 0.35);
 }
 
 .range.range-accent::-moz-range-thumb {
-    background-color: #06B6D4;
+    width: 20px;
+    height: 20px;
+    background-color: #06B6D4 !important;
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(6, 182, 212, 0.35);
+}
+
+/* TRACK (background bar) */
+.range.range-accent::-webkit-slider-runnable-track {
+    height: 6px;
+    border-radius: 5px;
+    background: transparent !important;  /* prevents DaisyUI override */
+}
+
+.range.range-accent::-moz-range-track {
+    height: 6px;
+    border-radius: 5px;
+    background-color: #ddd;
+}
+
+/* LEFT FILLED PART (Firefox only) */
+.range.range-accent::-moz-range-progress {
+    background-color: #06B6D4 !important;
+}
+
+/* Apply same cyan overrides for range-success to match requested #06B6D4 */
+.range.range-success {
+    accent-color: #06B6D4 !important;
+}
+
+
+.range.range-success::-webkit-slider-thumb {
+    background-color: #06B6D4 !important;
     border: 2px solid #fff;
     box-shadow: 0 2px 8px rgba(6, 182, 212, 0.35);
 }
 
-/* Filled track color for supported browsers */
-.range.range-accent::-webkit-slider-runnable-track {
-    background: linear-gradient(90deg, #06B6D4 var(--value, 50%), #ddd var(--value, 50%));
+.range.range-success::-moz-range-thumb {
+    background-color: #06B6D4 !important;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 8px rgba(6, 182, 212, 0.35);
 }
 
-.range.range-accent::-moz-range-track {
+.range.range-success::-webkit-slider-runnable-track {
+    height: 6px;
+    border-radius: 5px;
+    background: transparent !important;
+}
+
+.range.range-success::-moz-range-track {
+    height: 6px;
+    border-radius: 5px;
     background-color: #ddd;
 }
-.range.range-accent::-moz-range-progress {
+.range.range-success::-moz-range-progress {
     background-color: #06B6D4;
 }
 

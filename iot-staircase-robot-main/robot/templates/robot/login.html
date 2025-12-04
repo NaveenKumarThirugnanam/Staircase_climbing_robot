@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Login - IoT Robot Controller</title>
-    <link rel="stylesheet" href="{% static 'robot/css/style.css' %}">
+    <link rel="stylesheet" href="{% static 'robot/css/style.css' %}?v=2026">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
 </head>
 <body>
@@ -84,7 +84,7 @@
                     <!-- Username -->
                     <div class="input-group">
                         <div class="input-container">
-                            <input type="text" name="username" id="username" class="modern-input" placeholder=" " required>
+                            <input type="text" name="username" id="username" class="modern-input" placeholder=" " autocomplete="username" required>
                             <label for="username" class="floating-label">Username</label>
                             <div class="input-icon"><i class="fas fa-user"></i></div>
                             <div class="input-border-effect"></div>
@@ -94,7 +94,7 @@
                     <!-- Password -->
                     <div class="input-group">
                         <div class="input-container">
-                            <input type="password" name="password" id="password" class="modern-input" placeholder=" " required>
+                            <input type="password" name="password" id="password" class="modern-input" placeholder=" " autocomplete="current-password" required>
                             <label for="password" class="floating-label">Password</label>
                             <div class="input-icon"><i class="fas fa-lock"></i></div>
                             <button type="button" class="password-visibility-toggle" id="passwordToggle" aria-label="Show password">
@@ -107,7 +107,7 @@
                     <!-- Remember Me & Forgot Password -->
                     <div class="form-options">
                         <label class="remember-checkbox">
-                            <input type="checkbox" name="remember">
+                            <input type="checkbox" name="remember" value="on">
                             <span class="checkmark"></span>
                             <span>Remember me</span>
                         </label>
@@ -139,5 +139,66 @@
 </div>
 
 <script src="{% static 'robot/js/app.js' %}"></script>
+<script>
+// Remember Me functionality - Works with Django session cookies
+document.addEventListener('DOMContentLoaded', function() {
+    const usernameInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
+    const rememberCheckbox = document.querySelector('input[name="remember"]');
+    const loginForm = document.getElementById('loginForm');
+
+    // Enable browser autocomplete by setting autocomplete attributes
+    usernameInput.autocomplete = 'username';
+    passwordInput.autocomplete = 'current-password';
+
+    // Load saved credentials from localStorage (for autofill)
+    function loadCredentials() {
+        const savedUsername = localStorage.getItem('robot_username');
+        const savedPassword = localStorage.getItem('robot_password');
+        const rememberMe = localStorage.getItem('robot_remember_me') === 'true';
+
+        if (rememberMe && savedUsername && savedPassword) {
+            usernameInput.value = savedUsername;
+            passwordInput.value = savedPassword;
+            rememberCheckbox.checked = true;
+            
+            // Trigger input events to ensure browser recognizes the values
+            usernameInput.dispatchEvent(new Event('input', { bubbles: true }));
+            passwordInput.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    }
+
+    // Save credentials to localStorage when form is submitted
+    // This does NOT prevent form submission - it runs in parallel
+    loginForm.addEventListener('submit', function(e) {
+        // Save to localStorage for autofill on next visit
+        if (rememberCheckbox.checked) {
+            localStorage.setItem('robot_username', usernameInput.value);
+            localStorage.setItem('robot_password', passwordInput.value);
+            localStorage.setItem('robot_remember_me', 'true');
+            console.log('Remember Me: Credentials saved to localStorage');
+        } else {
+            // Clear saved credentials if "Remember me" is unchecked
+            localStorage.removeItem('robot_username');
+            localStorage.removeItem('robot_password');
+            localStorage.setItem('robot_remember_me', 'false');
+            console.log('Remember Me: Credentials cleared from localStorage');
+        }
+        // IMPORTANT: Do NOT prevent default form submission - CSRF token needs to be sent!
+    }, false);
+
+    // Load credentials on page load
+    loadCredentials();
+    
+    // Check if browser autofilled the fields, update checkbox accordingly
+    setTimeout(function() {
+        if (usernameInput.value && passwordInput.value) {
+            rememberCheckbox.checked = true;
+        }
+    }, 500);
+
+    console.log('Login page loaded. CSRF token:', document.querySelector('[name=csrfmiddlewaretoken]') ? 'Present' : 'Missing');
+});
+</script>
 </body>
 </html>

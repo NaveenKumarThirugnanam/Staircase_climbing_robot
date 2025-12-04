@@ -1,3 +1,142 @@
+// ===== GLOBAL WEBSOCKET CONNECTION =====
+// Use dynamic URL to work in production
+const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const host = window.location.host;
+const socket = new WebSocket(`${protocol}//${host}/ws/telemetry/`);
+
+console.log(`🔌 WebSocket URL: ${protocol}//${host}/ws/telemetry/`);
+
+socket.onopen = () => {
+    console.log("✅ WebSocket connected");
+};
+
+socket.onmessage = (event) => {
+    try {
+        const data = JSON.parse(event.data);
+        console.log("📨 WebSocket message received:", data);
+        
+        // Handle control acknowledgments
+        if (data.type === "ack") {
+            console.log(`✅ ACK: ${data.original_type} - ${data.message || 'OK'}`);
+            return;
+        }
+        
+        // ===== HANDLE VIDEO FRAMES =====
+        if (data.type === "video_frame") {
+            console.log(`🎥 Video frame received`);
+            displayVideoFrame(data);
+            return;
+        }
+        
+        // ===== HANDLE TELEMETRY UPDATES FROM SERVER =====
+        if (data.type === "telemetry_update") {
+            console.log(`📡 Telemetry update from ${data.device_id}:`, {
+                battery: data.battery,
+                cpu: data.cpu,
+                temperature: data.temperature,
+                signal: data.signal
+            });
+            
+            // Update dashboard with telemetry data
+            updateDashboardFromTelemetry(data);
+            return;
+        }
+        
+        // ===== HANDLE ROBOT STATUS UPDATES =====
+        if (data.type === "robot_status") {
+            console.log(`ℹ️  Robot status from ${data.device_id}: ${data.status}`);
+            
+            // Update robot connection status if needed
+            if (data.status === "disconnected") {
+                showModernToast(`Robot ${data.device_id} disconnected`, 'error');
+            }
+            return;
+        }
+        
+    } catch (err) {
+        console.error("❌ Error parsing WebSocket message:", err, event.data);
+    }
+};
+
+socket.onerror = (err) => {
+    console.error("❌ WebSocket error:", err);
+};
+
+socket.onclose = () => {
+    console.warn("⚠️  WebSocket closed");
+};
+
+// Simple throttling for control messages (per type)
+const controlSendState = {
+    lastSentAt: {},
+    minIntervalMs: 50 // max ~20 msgs/sec per type
+};
+
+function sendControlMessage(payload) {
+    if (!socket || socket.readyState !== 1) {
+        console.warn("WS not open  cannot send control message", payload);
+        return;
+    }
+
+    const now = Date.now();
+    const typeKey = payload && payload.type ? payload.type : "generic";
+    const last = controlSendState.lastSentAt[typeKey] || 0;
+    if (now - last < controlSendState.minIntervalMs) {
+        return;
+    }
+    controlSendState.lastSentAt[typeKey] = now;
+
+    try {
+        const withTs = Object.assign({ client_ts: now }, payload || {});
+        socket.send(JSON.stringify(withTs));
+        // Optional debug
+        // console.log("WS control →", withTs);
+    } catch (err) {
+        console.warn("WS send error (control)", err, payload);
+    }
+}
+
+// ===== VIDEO STREAMING HANDLER =====
+function displayVideoFrame(data) {
+    try {
+        const videoCanvas = document.getElementById('videoCanvas');
+        if (!videoCanvas) {
+            console.warn('⚠️  Video canvas not found');
+            return;
+        }
+        
+        const ctx = videoCanvas.getContext('2d');
+        
+        // If data contains base64 image
+        if (data.frame_data) {
+            const img = new Image();
+            img.onload = function() {
+                // Set canvas size to match image
+                videoCanvas.width = img.width;
+                videoCanvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+                console.log('🎥 Video frame displayed');
+            };
+            img.onerror = function() {
+                console.error('❌ Failed to load video frame');
+            };
+            img.src = 'data:image/jpeg;base64,' + data.frame_data;
+        }
+        // If data contains raw image data
+        else if (data.image_data) {
+            const img = new Image();
+            img.onload = function() {
+                videoCanvas.width = img.width;
+                videoCanvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+                console.log('🎥 Video frame displayed');
+            };
+            img.src = data.image_data;
+        }
+    } catch (err) {
+        console.error('❌ Error displaying video frame:', err);
+    }
+}
 
 // Modern IoT Robot Controller - Fixed Application
 document.addEventListener('DOMContentLoaded', function () {
@@ -154,11 +293,35 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function sendSpeedToRobot(value) {
-        console.log('Speed set to:', value);
+        const speedValue = Number(value);
+        console.log('⚡⚡⚡ SPEED SLIDER CHANGED:', speedValue + '%');
+        
+        const message = {
+            type: 'set_speed',
+            value: speedValue,
+            timestamp: new Date().toISOString(),
+            device: 'website'
+        };
+        
+        console.log('📤 Sending speed data via WebSocket:', message);
+        sendControlMessage(message);
+        console.log('✅ Speed data sent');
     }
 
     function sendBrightnessToRobot(value) {
-        console.log('Brightness set to:', value);
+        const brightnessValue = Number(value);
+        console.log('💡💡💡 BRIGHTNESS SLIDER CHANGED:', brightnessValue + '%');
+        
+        const message = {
+            type: 'set_brightness',
+            value: brightnessValue,
+            timestamp: new Date().toISOString(),
+            device: 'website'
+        };
+        
+        console.log('📤 Sending brightness data via WebSocket:', message);
+        sendControlMessage(message);
+        console.log('✅ Brightness data sent');
     }
 
     // Initialize the application
@@ -407,12 +570,16 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         // Sliders
+        console.log('🔧 Setting up sliders - speedSlider:', !!elements.speedSlider, 'brightnessSlider:', !!elements.brightnessSlider);
         if (elements.speedSlider) {
+            console.log('✅ Speed slider found, adding event listener');
             elements.speedSlider.addEventListener('input', () => {
+                console.log('⚡ Speed slider input event fired:', elements.speedSlider.value);
                 if (elements.speedValue) {
                     elements.speedValue.textContent = elements.speedSlider.value + '%';
                 }
                 sendSpeedToRobot(elements.speedSlider.value);
+                updateRangeFill(elements.speedSlider);
             });
             ['pointerdown', 'touchstart', 'mousedown'].forEach(evt => {
                 elements.speedSlider.addEventListener(evt, (e) => {
@@ -426,13 +593,18 @@ document.addEventListener('DOMContentLoaded', function () {
                     e.stopPropagation();
                 });
             });
+            // Initialize fill
+            updateRangeFill(elements.speedSlider);
         }
         if (elements.brightnessSlider) {
+            console.log('✅ Brightness slider found, adding event listener');
             elements.brightnessSlider.addEventListener('input', () => {
+                console.log('💡 Brightness slider input event fired:', elements.brightnessSlider.value);
                 if (elements.brightnessValue) {
                     elements.brightnessValue.textContent = elements.brightnessSlider.value + '%';
                 }
                 sendBrightnessToRobot(elements.brightnessSlider.value);
+                updateRangeFill(elements.brightnessSlider);
             });
             ['pointerdown', 'touchstart', 'mousedown'].forEach(evt => {
                 elements.brightnessSlider.addEventListener(evt, (e) => {
@@ -446,12 +618,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     e.stopPropagation();
                 });
             });
+            // Initialize fill
+            updateRangeFill(elements.brightnessSlider);
         }
 
-        // Dashboard events
-        if (elements.backToControllerBtn) {
-            elements.backToControllerBtn.addEventListener('click', navigateToController);
-        }
+        // ... (rest of the code remains the same)
 
         if (elements.profileBtnDashboard) {
             elements.profileBtnDashboard.addEventListener('click', toggleProfileDropdownDashboard);
@@ -498,6 +669,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Initialize dashboard device UI once
         updateActiveDeviceUI();
+
+        // Generic: apply dynamic fill updates to any DaisyUI accent ranges on the page
+        const accentRanges = document.querySelectorAll('.range.range-accent');
+        accentRanges.forEach((slider) => {
+            // initialize
+            updateRangeFill(slider);
+            // live update
+            slider.addEventListener('input', () => updateRangeFill(slider));
+        });
 
         console.log('✅ Event listeners setup complete');
     }
@@ -1411,6 +1591,11 @@ document.addEventListener('DOMContentLoaded', function () {
             appState.joysticks[type].x = normalizedX;
             appState.joysticks[type].y = normalizedY;
 
+            // Debug: show drag movement per event
+            try {
+                console.log(`Drag → ${type}: ${normalizedX.toFixed(2)}, ${normalizedY.toFixed(2)}`);
+            } catch {}
+
             updatePositionFromJoystick(type, normalizedX, normalizedY);
 
             e.preventDefault();
@@ -1435,6 +1620,21 @@ document.addEventListener('DOMContentLoaded', function () {
             appState.joysticks[type].x = 0;
             appState.joysticks[type].y = 0;
 
+            // Send a stop/zero command when joystick is released
+            if (type === 'robot') {
+                sendControlMessage({
+                    type: 'robot_move',
+                    x: 0,
+                    y: 0
+                });
+            } else if (type === 'camera') {
+                sendControlMessage({
+                    type: 'camera_move',
+                    x: 0,
+                    y: 0
+                });
+            }
+
             document.removeEventListener('mousemove', drag);
             document.removeEventListener('mouseup', stopDrag);
             document.removeEventListener('touchmove', drag);
@@ -1445,9 +1645,15 @@ document.addEventListener('DOMContentLoaded', function () {
         knobElement.addEventListener('touchstart', startDrag, { passive: false });
     }
 
-    // Enhanced position updates
+    // Enhanced position updates + WebSocket sending
     function updatePositionFromJoystick(type, x, y) {
+        // sensitivity logic — keep original
         const sensitivity = 0.15;
+
+        // Debug log for joystick values
+        try {
+            console.log("Joystick:", type, "X:", x.toFixed(2), "Y:", y.toFixed(2));
+        } catch {}
 
         if (type === 'robot') {
             appState.robotPosition.x += x * sensitivity;
@@ -1456,13 +1662,28 @@ document.addEventListener('DOMContentLoaded', function () {
             appState.robotPosition.x = Math.max(-99.99, Math.min(99.99, appState.robotPosition.x));
             appState.robotPosition.y = Math.max(-99.99, Math.min(99.99, appState.robotPosition.y));
 
+            // SEND ROBOT JOYSTICK DATA as robot_move control message
+            sendControlMessage({
+                type: 'robot_move',
+                x: appState.robotPosition.x,
+                y: appState.robotPosition.y
+            });
+
             updateStatusDisplay('position');
+
         } else if (type === 'camera') {
             appState.cameraPosition.x += x * sensitivity;
             appState.cameraPosition.y += y * sensitivity;
 
             appState.cameraPosition.x = Math.max(-99.99, Math.min(99.99, appState.cameraPosition.x));
             appState.cameraPosition.y = Math.max(-99.99, Math.min(99.99, appState.cameraPosition.y));
+
+            // SEND CAMERA JOYSTICK DATA as camera_move control message
+            sendControlMessage({
+                type: 'camera_move',
+                x: appState.cameraPosition.x,
+                y: appState.cameraPosition.y
+            });
 
             updateStatusDisplay('camera');
         }
@@ -1502,6 +1723,58 @@ document.addEventListener('DOMContentLoaded', function () {
         if (elements.cameraX) elements.cameraX.textContent = appState.cameraPosition.x.toFixed(2);
         if (elements.cameraY) elements.cameraY.textContent = appState.cameraPosition.y.toFixed(2);
         // Controller sidebar legacy values remain handled in simulation
+    }
+
+    // ===== UPDATE DASHBOARD FROM TELEMETRY (from WebSocket server) =====
+    function updateDashboardFromTelemetry(telemetryData) {
+        console.log("📊 Updating dashboard with telemetry:", telemetryData);
+        
+        // Extract data
+        const deviceId = telemetryData.device_id || "1";
+        const battery = telemetryData.battery;
+        const cpu = telemetryData.cpu;
+        const temperature = telemetryData.temperature;
+        const signal = telemetryData.signal;
+        
+        // Update app state if this is the active device
+        if (deviceId === appState.activeDevice || deviceId === "1") {
+            appState.devices[deviceId] = {
+                ...appState.devices[deviceId],
+                battery: battery,
+                cpu: cpu,
+                temperature: temperature,
+                signal: signal
+            };
+        }
+        
+        // Update controller sidebar (if visible)
+        if (elements.batteryLevel) {
+            elements.batteryLevel.style.width = `${battery}%`;
+        }
+        if (elements.batteryPercentage) {
+            elements.batteryPercentage.textContent = `${Math.round(battery)}%`;
+        }
+        if (elements.signalStrength) {
+            elements.signalStrength.textContent = `${Math.round(signal)}%`;
+        }
+        
+        // Update dashboard if visible
+        if (appState.currentPage === 'dashboard') {
+            updateActiveDeviceUI();
+        }
+        
+        // Update metric values if dashboard page
+        const batteryEl = document.getElementById("metricBattery");
+        const cpuEl = document.getElementById("metricCpu");
+        const tempEl = document.getElementById("metricTemperature");
+        const signalEl = document.getElementById("metricSignal");
+        
+        if (batteryEl) batteryEl.textContent = `${Math.round(battery)}%`;
+        if (cpuEl) cpuEl.textContent = `${Math.round(cpu)}%`;
+        if (tempEl) tempEl.textContent = `${Math.round(temperature)}°C`;
+        if (signalEl) signalEl.textContent = `${Math.round(signal)}%`;
+        
+        console.log("✅ Dashboard updated with real telemetry data");
     }
 
     // Enhanced status entrance animation
@@ -1644,6 +1917,17 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    // Update a range input's visual fill track to match its current value
+    function updateRangeFill(inputEl) {
+        if (!inputEl) return;
+        const min = Number(inputEl.min || 0);
+        const max = Number(inputEl.max || 100);
+        const val = Number(inputEl.value || 0);
+        const pct = ((val - min) * 100) / (max - min);
+        // Update CSS variable for gradient fill
+        inputEl.style.setProperty('--value', `${pct}%`);
+    }
+
     // Enhanced toast notifications
     function showModernToast(message, type = 'info') {
         if (!elements.toastNotification) return;
@@ -1714,55 +1998,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Initialize the enhanced application
     init();
-
-    // === LIVE TELEMETRY WEBSOCKET ===
-    const telemetrySocket = new WebSocket("ws://127.0.0.1:8000/ws/telemetry/");
-
-    telemetrySocket.onopen = () => {
-        console.log("✅ Connected to Telemetry WebSocket");
-    };
-
-    telemetrySocket.onmessage = (event) => {
-        try {
-            const data = JSON.parse(event.data);
-            console.log("📡 Telemetry update:", data);
-
-            // Update dashboard values dynamically
-            if (data.battery !== undefined) {
-                const batteryEl = document.getElementById("metricBattery");
-                const batteryLevel = document.getElementById("batteryLevel");
-                const batteryPercentage = document.getElementById("batteryPercentage");
-
-                if (batteryEl) batteryEl.textContent = `${data.battery}%`;
-                if (batteryLevel) batteryLevel.style.width = `${data.battery}%`;
-                if (batteryPercentage) batteryPercentage.textContent = `${data.battery}%`;
-            }
-
-            if (data.cpu !== undefined) {
-                const cpuEl = document.getElementById("metricCpu");
-                if (cpuEl) cpuEl.textContent = `${data.cpu}%`;
-            }
-
-            if (data.temperature !== undefined) {
-                const tempEl = document.getElementById("metricTemperature");
-                if (tempEl) tempEl.textContent = `${data.temperature}°C`;
-            }
-
-            if (data.signal !== undefined) {
-                const signalEl = document.getElementById("metricSignal");
-                if (signalEl) signalEl.textContent = `${data.signal}%`;
-            }
-
-        } catch (err) {
-            console.error("❌ Error parsing telemetry data:", err);
-        }
-    };
-
-    telemetrySocket.onclose = () => {
-        console.warn("⚠️ Telemetry WebSocket closed. Reconnecting in 3s...");
-        setTimeout(() => window.location.reload(), 3000);
-    };
-
 
     console.log('🎉 Modern IoT Robot Controller fully loaded and ready!');
 
