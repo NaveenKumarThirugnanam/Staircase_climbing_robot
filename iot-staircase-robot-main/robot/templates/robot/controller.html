@@ -46,8 +46,7 @@
                         <button class="profile-btn" id="profileBtn">
                             <div class="profile-avatar">{{ request.user.username|slice:":1"|upper }}</div>
                             <div class="profile-info">
-                                <span class="profile-name">{{ request.user.get_full_name|default:request.user.username
-                                    }}</span>
+                                <span class="profile-name">{{ request.user.get_full_name|default:request.user.username }}</span>
                                 <span class="profile-email">{{ request.user.email }}</span>
                             </div>
                             <i class="fas fa-chevron-down profile-arrow"></i>
