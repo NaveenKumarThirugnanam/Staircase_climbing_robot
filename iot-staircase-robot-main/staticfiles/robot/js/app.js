@@ -569,6 +569,35 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
 
+        // Camera controls: Refresh (fullscreen handled by fullscreen-fix.js)
+        const refreshBtn = document.getElementById('refreshVideoBtn') ||
+            document.getElementById('refreshBtn') ||
+            document.querySelector('.camera-controls .control-btn:first-child');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const img = document.getElementById('videoFrame');
+                const canvas = document.getElementById('videoCanvas');
+                if (img) {
+                    img.src = '';
+                    img.style.display = 'none';
+                }
+                if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    if (ctx) {
+                        ctx.clearRect(0, 0, canvas.width || 0, canvas.height || 0);
+                    }
+                }
+                try {
+                    if (socket && socket.readyState === 1) {
+                        socket.send(JSON.stringify({ type: 'request_frame' }));
+                    }
+                } catch (err) {
+                    console.warn('Refresh request failed', err);
+                }
+            });
+        }
+
         // Sliders
         console.log('🔧 Setting up sliders - speedSlider:', !!elements.speedSlider, 'brightnessSlider:', !!elements.brightnessSlider);
         if (elements.speedSlider) {

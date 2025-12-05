@@ -531,6 +531,55 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
 
+        // Camera controls: Refresh and Fullscreen
+        const refreshBtn = document.getElementById('refreshVideoBtn') || document.getElementById('refreshBtn') || document.querySelector('.camera-controls .control-btn:first-child');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const img = document.getElementById('videoFrame');
+                const canvas = document.getElementById('videoCanvas');
+                if (img) {
+                    img.src = '';
+                    img.style.display = 'none';
+                }
+                if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    if (ctx) {
+                        ctx.clearRect(0, 0, canvas.width || 0, canvas.height || 0);
+                    }
+                }
+                try {
+                    if (socket && socket.readyState === 1) {
+                        socket.send(JSON.stringify({ type: 'request_frame' }));
+                    }
+                } catch (err) {
+                    console.warn('Refresh request failed', err);
+                }
+            });
+        }
+
+        const fullscreenBtn = document.getElementById('fullscreenVideoBtn') || document.getElementById('fullscreenBtn') || document.querySelector('.camera-controls .control-btn:nth-child(2)');
+        if (fullscreenBtn) {
+            fullscreenBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const target = document.querySelector('.camera-feed') || document.querySelector('.video-container') || document.querySelector('.camera-section');
+                const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+                if (isFs) {
+                    const exit = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
+                    if (exit) exit.call(document);
+                    return;
+                }
+                if (!target) return;
+                const req = target.requestFullscreen || target.webkitRequestFullscreen || target.mozRequestFullScreen || target.msRequestFullscreen;
+                if (req) {
+                    try {
+                        const p = req.call(target);
+                        if (p && p.catch) p.catch(() => {});
+                    } catch (_) {}
+                }
+            });
+        }
+
         // Sliders
         if (elements.speedSlider) {
             elements.speedSlider.addEventListener('input', () => {

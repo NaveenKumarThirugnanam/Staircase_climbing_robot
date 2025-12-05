@@ -1,6 +1,7 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,6 +12,7 @@
     <link href="https://cdn.jsdelivr.net/npm/daisyui@3.8.2/dist/full.css" rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
+
 <body>
     <!-- Controller Page -->
     <div id="controllerPage" class="page-view active">
@@ -44,7 +46,8 @@
                         <button class="profile-btn" id="profileBtn">
                             <div class="profile-avatar">{{ request.user.username|slice:":1"|upper }}</div>
                             <div class="profile-info">
-                                <span class="profile-name">{{ request.user.get_full_name|default:request.user.username }}</span>
+                                <span class="profile-name">{{ request.user.get_full_name|default:request.user.username
+                                    }}</span>
                                 <span class="profile-email">{{ request.user.email }}</span>
                             </div>
                             <i class="fas fa-chevron-down profile-arrow"></i>
@@ -81,8 +84,12 @@
                     <div class="section-header">
                         <h2>Live Camera Feed</h2>
                         <div class="camera-controls">
-                            <button class="control-btn"><i class="fas fa-refresh"></i></button>
-                            <button class="control-btn"><i class="fas fa-expand"></i></button>
+                            <button class="control-btn" id="refreshVideoBtn">
+                                <i class="fas fa-refresh"></i>
+                            </button>
+                            <button class="control-btn" id="fullscreenVideoBtn">
+                                <i class="fas fa-expand"></i>
+                            </button>
                         </div>
                     </div>
                     <div class="camera-feed">
@@ -99,8 +106,10 @@
                                 </div>
                             </div>
                             <div class="video-content">
-                                <div id="videoStream" style="width: 100%; height: 100%; background: #000; border-radius: 8px; overflow: hidden;">
-                                    <img id="videoFrame" src="" style="width: 100%; height: 100%; object-fit: contain; display: none;">
+                                <div id="videoStream"
+                                    style="width: 100%; height: 100%; background: #000; border-radius: 8px; overflow: hidden;">
+                                    <img id="videoFrame" src=""
+                                        style="width: 100%; height: 100%; object-fit: contain; display: none;">
                                     <canvas id="videoCanvas" style="width: 100%; height: 100%;"></canvas>
                                 </div>
                                 <div class="crosshair">
@@ -182,7 +191,8 @@
                                     <h4>Movement Speed</h4>
                                     <span id="speedValue" class="slider-value">50%</span>
                                 </div>
-                                <input type="range" id="speedSlider" min="1" max="100" value="50" class="range range-success styled-range" style="margin-bottom: 15px;">
+                                <input type="range" id="speedSlider" min="1" max="100" value="50"
+                                    class="range range-success styled-range" style="margin-bottom: 15px;">
                             </div>
 
                             <!-- Brightness Control -->
@@ -191,7 +201,8 @@
                                     <h4>Brightness</h4>
                                     <span id="brightnessValue" class="slider-value">70%</span>
                                 </div>
-                                <input type="range" id="brightnessSlider" min="1" max="100" value="70" class="range range-success styled-range">
+                                <input type="range" id="brightnessSlider" min="1" max="100" value="70"
+                                    class="range range-success styled-range">
                             </div>
                         </div>
 
@@ -222,7 +233,10 @@
             <span class="toast-message"></span>
         </div>
     </div>
-
+    
+    <script src="{% static 'robot/js/fullscreen-fix.js' %}?v=1"></script>
     <script src="{% static 'robot/js/app.js' %}?v=2"></script>
+
 </body>
+
 </html>
