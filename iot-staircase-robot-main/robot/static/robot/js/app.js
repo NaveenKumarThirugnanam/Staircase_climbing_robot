@@ -3,8 +3,8 @@ const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
 const wsHost = window.location.host;
 const wsUrl = `${wsProtocol}://${wsHost}/ws/telemetry/`;
 
-// WebSocket for telemetry and control (global scope)
-const socket = new WebSocket(wsUrl);
+// WebSocket for telemetry and control (global scope) - initialized after DOM ready
+let socket = null;
 
 // Track connected devices
 const connectedDevices = new Set();
@@ -49,62 +49,72 @@ function updateDeviceStatus(deviceId, isConnected) {
     }
 }
 
-// WebSocket event handlers
-socket.onopen = () => {
-    console.log("✅ Main WebSocket connected");
-    updateConnectionStatus(true);
-};
+// Initialize the main websocket after DOM is ready so status elements exist
+function initSocket() {
+    socket = new WebSocket(wsUrl);
 
-socket.onmessage = (event) => {
-    try {
-        const data = JSON.parse(event.data);
-        console.log("📨 WebSocket message:", data);
-        
-        // Handle connection status messages
-        if (data.status === "connected" && data.device_type === "robot") {
-            console.log(`✅ Robot ${data.device_id} connected`);
-            updateDeviceStatus(data.device_id, true);
-        }
-        
-        // Handle device disconnection
-        if (data.status === "disconnected" && data.device_id) {
-            console.log(`🔌 Robot ${data.device_id} disconnected`);
-            updateDeviceStatus(data.device_id, false);
-        }
-        
-        // Handle video frames
-        if (data.type === "video_frame" && data.frame_data) {
-            displayVideoFrame(data);
-            // If we receive video from a device, mark it as connected
-            if (data.device_id) {
-                updateDeviceStatus(data.device_id, true);
+    socket.onopen = () => {
+        console.log("✅ Main WebSocket connected");
+        updateConnectionStatus(true);
+    };
+
+    socket.onmessage = (event) => {
+        try {
+            const data = JSON.parse(event.data);
+            console.log("📨 WebSocket message:", data);
+            
+            // Handle connection status messages (robot or dashboard)
+            if (data.status === "connected") {
+                updateConnectionStatus(true);
+                if (data.device_type === "robot" && data.device_id) {
+                    console.log(`✅ Robot ${data.device_id} connected`);
+                    updateDeviceStatus(data.device_id, true);
+                }
             }
-        }
-        
-        // Handle telemetry updates
-        if (data.type === "telemetry_update") {
-            updateTelemetryDisplay(data);
-            // If we receive telemetry from a device, mark it as connected
-            if (data.device_id) {
-                updateDeviceStatus(data.device_id, true);
+            
+            // Handle device disconnection
+            if (data.status === "disconnected") {
+                updateConnectionStatus(false);
+                if (data.device_id) {
+                    console.log(`🔌 Robot ${data.device_id} disconnected`);
+                    updateDeviceStatus(data.device_id, false);
+                }
             }
+            
+            // Handle video frames
+            if (data.type === "video_frame" && data.frame_data) {
+                displayVideoFrame(data);
+                // If we receive video from a device, mark it as connected
+                if (data.device_id) {
+                    updateDeviceStatus(data.device_id, true);
+                }
+            }
+            
+            // Handle telemetry updates
+            if (data.type === "telemetry_update") {
+                updateTelemetryDisplay(data);
+                // If we receive telemetry from a device, mark it as connected
+                if (data.device_id) {
+                    updateDeviceStatus(data.device_id, true);
+                }
+            }
+            
+        } catch (err) {
+            console.error("❌ WebSocket message error:", err);
         }
-        
-    } catch (err) {
-        console.error("❌ WebSocket message error:", err);
-    }
-};
+    };
 
-socket.onerror = (error) => {
-    console.error("❌ WebSocket error:", error);
-    updateConnectionStatus(false);
-};
+    socket.onerror = (error) => {
+        console.error("❌ WebSocket error:", error);
+        updateConnectionStatus(false);
+    };
 
-socket.onclose = () => {
-    console.warn("⚠️ WebSocket closed. Reconnecting in 3s...");
-    updateConnectionStatus(false);
-    setTimeout(() => window.location.reload(), 3000);
-};
+    socket.onclose = () => {
+        console.warn("⚠️ WebSocket closed. Reconnecting in 3s...");
+        updateConnectionStatus(false);
+        setTimeout(() => window.location.reload(), 3000);
+    };
+}
 
 // Function to display video frames
 function displayVideoFrame(data) {
@@ -185,7 +195,7 @@ const controlSendState = {
 
 function sendControlMessage(payload) {
     if (!socket || socket.readyState !== 1) {
-        console.warn("WS not open  cannot send control message", payload);
+        console.warn("WS not open — cannot send control message", payload);
         return;
     }
 
@@ -382,6 +392,16 @@ document.addEventListener('DOMContentLoaded', function () {
     // Initialize the application
     function init() {
         console.log('🚀 Initializing Modern IoT Robot Controller...');
+
+        // Ensure WebSocket is ready now that DOM elements exist
+    initSocket();
+
+    // Fallback: if socket already open (e.g., quick reload), mark connected
+    setTimeout(() => {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            updateConnectionStatus(true);
+        }
+    }, 500);
 
         // Read preferred view from URL (?view=dashboard)
         const params = new URLSearchParams(window.location.search);

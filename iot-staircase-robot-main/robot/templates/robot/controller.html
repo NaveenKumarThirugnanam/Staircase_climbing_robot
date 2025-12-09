@@ -25,9 +25,9 @@
                         <span class="logo-text">IoT Robot Controller</span>
                     </div>
                     <div class="connection-status">
-                        <div class="status-indicator connected">
+                        <div class="status-indicator" id="connectionStatus">
                             <div class="status-dot"></div>
-                            <span>Connected</span>
+                            <span>Connecting...</span>
                         </div>
                     </div>
                 </div>
@@ -55,10 +55,6 @@
                             <a class="dropdown-item" href="{% url 'profile' %}">
                                 <i class="fas fa-user"></i>
                                 <span>Profile</span>
-                            </a>
-                            <a class="dropdown-item" href="{% url 'password_change' %}">
-                                <i class="fas fa-key"></i>
-                                <span>Change Password</span>
                             </a>
                             <a class="dropdown-item" href="{% url 'settings' %}">
                                 <i class="fas fa-cog"></i>
@@ -234,7 +230,7 @@
     </div>
     
     <script src="{% static 'robot/js/fullscreen-fix.js' %}?v=1"></script>
-    <script src="{% static 'robot/js/app.js' %}?v=2"></script>
+    <script src="{% static 'robot/js/app.js' %}?v=3"></script>
 
 </body>
 

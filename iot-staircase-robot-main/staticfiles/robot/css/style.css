@@ -1980,6 +1980,12 @@ select.form-control {
     border: 1px solid rgba(var(--color-success-rgb), 0.2);
 }
 
+.status-indicator.disconnected {
+    background: rgba(var(--color-error-rgb), 0.1);
+    color: var(--color-error);
+    border: 1px solid rgba(var(--color-error-rgb), 0.2);
+}
+
 .status-dot {
     width: 8px;
     height: 8px;
@@ -1988,9 +1994,32 @@ select.form-control {
     animation: pulseDot 2s ease-in-out infinite;
 }
 
+.status-dot.disconnected {
+    background: var(--color-error);
+    animation: none;
+}
+
 @keyframes pulseDot {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }
+}
+
+/* Dashboard device status dots (green = connected, red = disconnected) */
+.device-status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    margin-left: auto;
+    box-shadow: 0 0 0 2px rgba(0,0,0,0.06);
+}
+
+.device-status-dot.connected {
+    background-color: var(--color-success);
+}
+
+.device-status-dot.disconnected {
+    background-color: var(--color-error);
+    opacity: 0.8;
 }
 
 .header-right {

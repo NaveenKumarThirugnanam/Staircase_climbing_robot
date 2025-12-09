@@ -62,6 +62,14 @@ class TelemetryConsumer(AsyncWebsocketConsumer):
                 "device_id": self.device_id,
                 "message": f"Robot {self.device_id} connected to server"
             }))
+            
+            # Notify all websites that this robot connected
+            await self.broadcast_to_websites({
+                "status": "connected",
+                "device_type": "robot",
+                "device_id": self.device_id,
+                "message": f"Robot {self.device_id} has connected"
+            })
         else:
             connected_devices['websites'][self.device_id] = self
             print(f"✅ Website/Dashboard connected")
@@ -72,6 +80,15 @@ class TelemetryConsumer(AsyncWebsocketConsumer):
                 "device_type": "website",
                 "message": "Dashboard connected to server"
             }))
+            
+            # Send current robot connection status to newly connected dashboard
+            for robot_id in connected_devices['robots'].keys():
+                await self.send(json.dumps({
+                    "status": "connected",
+                    "device_type": "robot",
+                    "device_id": robot_id,
+                    "message": f"Robot {robot_id} is currently connected"
+                }))
 
     async def disconnect(self, close_code):
         """Handle disconnection"""
@@ -82,9 +99,9 @@ class TelemetryConsumer(AsyncWebsocketConsumer):
             
             # Notify all websites that this robot disconnected
             await self.broadcast_to_websites({
-                "type": "robot_status",
-                "device_id": self.device_id,
                 "status": "disconnected",
+                "device_type": "robot",
+                "device_id": self.device_id,
                 "message": f"Robot {self.device_id} has disconnected"
             })
             

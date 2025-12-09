@@ -4,10 +4,15 @@ const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 const host = window.location.host;
 const socket = new WebSocket(`${protocol}//${host}/ws/telemetry/`);
 
+// Track robot connection state by device_id as reported by backend
+const robotConnections = {};
+
 console.log(`🔌 WebSocket URL: ${protocol}//${host}/ws/telemetry/`);
 
 socket.onopen = () => {
     console.log("✅ WebSocket connected");
+    // Mark server connection as up in UI (if on controller/dashboard)
+    try { setHeaderConnectionState('connected'); } catch (_) {}
 };
 
 socket.onmessage = (event) => {
@@ -39,6 +44,11 @@ socket.onmessage = (event) => {
             
             // Update dashboard with telemetry data
             updateDashboardFromTelemetry(data);
+            
+            // Update robot connection status if needed
+            if (data.status === "disconnected") {
+                showModernToast(`Robot ${data.device_id} disconnected`, 'error');
+            }
             return;
         }
         
@@ -50,6 +60,14 @@ socket.onmessage = (event) => {
             if (data.status === "disconnected") {
                 showModernToast(`Robot ${data.device_id} disconnected`, 'error');
             }
+            return;
+        }
+
+        // ===== HANDLE GENERIC STATUS MESSAGES (connection events) =====
+        // Backend TelemetryConsumer.connect/disconnect broadcasts messages like:
+        // {"status": "connected"|"disconnected", "device_type": "robot"|"website", "device_id"?: "robot_01"}
+        if (data.status && data.device_type) {
+            handleConnectionStatusMessage(data);
             return;
         }
         
@@ -64,7 +82,89 @@ socket.onerror = (err) => {
 
 socket.onclose = () => {
     console.warn("⚠️  WebSocket closed");
+    // When WS closes, treat all robots as disconnected in UI
+    try {
+        Object.keys(robotConnections).forEach(id => {
+            robotConnections[id] = false;
+        });
+        setHeaderConnectionState('disconnected');
+        setDeviceConnectionState('device1Status', false);
+        setDeviceConnectionState('device2Status', false);
+    } catch (_) {}
 };
+
+// Map backend robot_id (e.g. "robot_01") to dashboard device DOM id (device1Status/device2Status)
+function mapRobotToDeviceDomId(robotId) {
+    if (!robotId) return 'device1Status';
+    const id = String(robotId).toLowerCase();
+    if (id.endsWith('2')) return 'device2Status';
+    // Default: first device
+    return 'device1Status';
+}
+
+// Update header connection pill in both controller and dashboard
+function setHeaderConnectionState(state) {
+    const indicator = document.getElementById('connectionStatus');
+    if (!indicator) return;
+
+    const dot = indicator.querySelector('.status-dot');
+    const label = indicator.querySelector('span');
+
+    indicator.classList.remove('connected', 'disconnected');
+    if (dot) dot.classList.remove('disconnected');
+
+    if (state === 'connected') {
+        indicator.classList.add('connected');
+        if (label) label.textContent = 'Connected';
+    } else if (state === 'disconnected') {
+        indicator.classList.add('disconnected');
+        if (label) label.textContent = 'Disconnected';
+        if (dot) dot.classList.add('disconnected');
+    } else {
+        // Fallback: show connecting state
+        if (label) label.textContent = 'Connecting...';
+    }
+}
+
+// Update a specific dashboard device status dot by DOM id
+function setDeviceConnectionState(deviceDomId, isConnected) {
+    if (!deviceDomId) return;
+    const dot = document.getElementById(deviceDomId);
+    if (!dot) return;
+    dot.classList.add('device-status-dot');
+    dot.classList.toggle('connected', !!isConnected);
+    dot.classList.toggle('disconnected', !isConnected);
+}
+
+// Handle status messages coming from backend
+function handleConnectionStatusMessage(data) {
+    const deviceType = data.device_type;
+    const status = data.status; // "connected" or "disconnected"
+    const deviceId = data.device_id;
+
+    // Website connection to server
+    if (deviceType === 'website') {
+        if (status === 'connected') {
+            setHeaderConnectionState('connected');
+        }
+        return;
+    }
+
+    if (deviceType === 'robot') {
+        const isConnected = status === 'connected';
+        if (deviceId) {
+            robotConnections[deviceId] = isConnected;
+        }
+
+        // Map robot to dashboard device dot and update
+        const deviceDomId = mapRobotToDeviceDomId(deviceId);
+        setDeviceConnectionState(deviceDomId, isConnected);
+
+        // Header: show connected if at least one robot is connected, else disconnected
+        const anyConnected = Object.values(robotConnections).some(Boolean);
+        setHeaderConnectionState(anyConnected ? 'connected' : 'disconnected');
+    }
+}
 
 // Simple throttling for control messages (per type)
 const controlSendState = {
