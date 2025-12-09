@@ -1,6 +1,27 @@
-# Complete IoT Staircase Robot System Architecture
+# 🤖 IoT Staircase Climbing Robot System
 
-## 🎯 Overview
+## 📋 Project Overview
+
+This is a **complete IoT robotics system** that allows remote control of a staircase-climbing robot through a modern web dashboard. The system uses **real-time WebSocket communication** for instant control and monitoring.
+
+### Key Features:
+- 🎮 **Dual Joystick Control** - Movement + Camera pan/tilt
+- 📊 **Real-time Telemetry** - Battery, CPU, temperature, signal strength
+- 🎥 **Live Video Streaming** - Real-time camera feed from robot
+- 📈 **Advanced Battery Chart** - Highcharts visualization with zoom & pan
+- 👤 **User Authentication** - Login/Register/Profile management
+- 📱 **Responsive Design** - Works on desktop, tablet, mobile
+- 🔗 **Multi-Robot Support** - Control multiple robots from one dashboard
+
+**Tech Stack:**
+- **Backend:** Django 5.2 + Django Channels (WebSocket)
+- **Frontend:** Vanilla JavaScript + Highcharts
+- **Database:** SQLite (dev) / PostgreSQL (production)
+- **Hardware:** Raspberry Pi / Laptop with camera
+
+---
+
+## 🎯 System Overview
 
 Your system has **3 main components** that communicate through WebSocket:
 
