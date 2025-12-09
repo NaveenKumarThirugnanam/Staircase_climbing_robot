@@ -1,9 +1,58 @@
+// Resolve WebSocket URL based on current page (works for http/https and non-local hosts)
+const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+const wsHost = window.location.host;
+const wsUrl = `${wsProtocol}://${wsHost}/ws/telemetry/`;
+
 // WebSocket for telemetry and control (global scope)
-const socket = new WebSocket("ws://127.0.0.1:8000/ws/telemetry/");
+const socket = new WebSocket(wsUrl);
+
+// Track connected devices
+const connectedDevices = new Set();
+
+// Function to update connection status
+function updateConnectionStatus(isConnected) {
+    const statusIndicator = document.getElementById('connectionStatus');
+    if (statusIndicator) {
+        if (isConnected) {
+            statusIndicator.classList.add('connected');
+            statusIndicator.classList.remove('disconnected');
+            statusIndicator.querySelector('span').textContent = 'Connected';
+        } else {
+            statusIndicator.classList.remove('connected');
+            statusIndicator.classList.add('disconnected');
+            statusIndicator.querySelector('span').textContent = 'Disconnected';
+        }
+    }
+}
+
+// Function to update device status indicators
+function updateDeviceStatus(deviceId, isConnected) {
+    const deviceStatusMap = {
+        'robot_01': 'device1Status',
+        'robot_02': 'device2Status'
+    };
+    
+    const statusElementId = deviceStatusMap[deviceId];
+    if (statusElementId) {
+        const statusElement = document.getElementById(statusElementId);
+        if (statusElement) {
+            if (isConnected) {
+                statusElement.classList.add('connected');
+                statusElement.classList.remove('disconnected');
+                connectedDevices.add(deviceId);
+            } else {
+                statusElement.classList.remove('connected');
+                statusElement.classList.add('disconnected');
+                connectedDevices.delete(deviceId);
+            }
+        }
+    }
+}
 
 // WebSocket event handlers
 socket.onopen = () => {
     console.log("✅ Main WebSocket connected");
+    updateConnectionStatus(true);
 };
 
 socket.onmessage = (event) => {
@@ -11,14 +60,34 @@ socket.onmessage = (event) => {
         const data = JSON.parse(event.data);
         console.log("📨 WebSocket message:", data);
         
+        // Handle connection status messages
+        if (data.status === "connected" && data.device_type === "robot") {
+            console.log(`✅ Robot ${data.device_id} connected`);
+            updateDeviceStatus(data.device_id, true);
+        }
+        
+        // Handle device disconnection
+        if (data.status === "disconnected" && data.device_id) {
+            console.log(`🔌 Robot ${data.device_id} disconnected`);
+            updateDeviceStatus(data.device_id, false);
+        }
+        
         // Handle video frames
         if (data.type === "video_frame" && data.frame_data) {
             displayVideoFrame(data);
+            // If we receive video from a device, mark it as connected
+            if (data.device_id) {
+                updateDeviceStatus(data.device_id, true);
+            }
         }
         
         // Handle telemetry updates
         if (data.type === "telemetry_update") {
             updateTelemetryDisplay(data);
+            // If we receive telemetry from a device, mark it as connected
+            if (data.device_id) {
+                updateDeviceStatus(data.device_id, true);
+            }
         }
         
     } catch (err) {
@@ -28,10 +97,12 @@ socket.onmessage = (event) => {
 
 socket.onerror = (error) => {
     console.error("❌ WebSocket error:", error);
+    updateConnectionStatus(false);
 };
 
 socket.onclose = () => {
     console.warn("⚠️ WebSocket closed. Reconnecting in 3s...");
+    updateConnectionStatus(false);
     setTimeout(() => window.location.reload(), 3000);
 };
 
@@ -63,19 +134,41 @@ function displayVideoFrame(data) {
     }
 }
 
-// Function to update telemetry display
+// Function to update telemetry display (controller + dashboard metrics)
 function updateTelemetryDisplay(data) {
     try {
         if (data.battery !== undefined) {
+            // Controller sidebar battery
             const batteryLevel = document.getElementById("batteryLevel");
             const batteryPercentage = document.getElementById("batteryPercentage");
             if (batteryLevel) batteryLevel.style.width = `${data.battery}%`;
             if (batteryPercentage) batteryPercentage.textContent = `${data.battery}%`;
+
+            // Dashboard cards
+            const batteryValue = document.getElementById("batteryValue");
+            if (batteryValue) batteryValue.textContent = `${Math.round(data.battery)}%`;
         }
         
         if (data.signal !== undefined) {
+            // Controller header signal
             const signalStrength = document.getElementById("signalStrength");
             if (signalStrength) signalStrength.textContent = `${Math.round(data.signal)}%`;
+
+            // Dashboard cards
+            const signalValue = document.getElementById("signalValue");
+            const networkSignal = document.getElementById("networkSignal");
+            if (signalValue) signalValue.textContent = `${Math.round(data.signal)}%`;
+            if (networkSignal) networkSignal.textContent = `${Math.round(data.signal)}%`;
+        }
+        
+        if (data.cpu !== undefined) {
+            const cpuValue = document.getElementById("cpuValue");
+            if (cpuValue) cpuValue.textContent = `${Math.round(data.cpu)}%`;
+        }
+
+        if (data.temperature !== undefined) {
+            const temperatureValue = document.getElementById("temperatureValue");
+            if (temperatureValue) temperatureValue.textContent = `${Math.round(data.temperature)}°C`;
         }
         
         console.log("📊 Telemetry updated");
@@ -1952,55 +2045,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Initialize the enhanced application
     init();
-
-    // === LIVE TELEMETRY WEBSOCKET ===
-    const telemetrySocket = new WebSocket("ws://127.0.0.1:8000/ws/telemetry/");
-
-    telemetrySocket.onopen = () => {
-        console.log("✅ Connected to Telemetry WebSocket");
-    };
-
-    telemetrySocket.onmessage = (event) => {
-        try {
-            const data = JSON.parse(event.data);
-            console.log("📡 Telemetry update:", data);
-
-            // Update dashboard values dynamically
-            if (data.battery !== undefined) {
-                const batteryEl = document.getElementById("metricBattery");
-                const batteryLevel = document.getElementById("batteryLevel");
-                const batteryPercentage = document.getElementById("batteryPercentage");
-
-                if (batteryEl) batteryEl.textContent = `${data.battery}%`;
-                if (batteryLevel) batteryLevel.style.width = `${data.battery}%`;
-                if (batteryPercentage) batteryPercentage.textContent = `${data.battery}%`;
-            }
-
-            if (data.cpu !== undefined) {
-                const cpuEl = document.getElementById("metricCpu");
-                if (cpuEl) cpuEl.textContent = `${data.cpu}%`;
-            }
-
-            if (data.temperature !== undefined) {
-                const tempEl = document.getElementById("metricTemperature");
-                if (tempEl) tempEl.textContent = `${data.temperature}°C`;
-            }
-
-            if (data.signal !== undefined) {
-                const signalEl = document.getElementById("metricSignal");
-                if (signalEl) signalEl.textContent = `${data.signal}%`;
-            }
-
-        } catch (err) {
-            console.error("❌ Error parsing telemetry data:", err);
-        }
-    };
-
-    telemetrySocket.onclose = () => {
-        console.warn("⚠️ Telemetry WebSocket closed. Reconnecting in 3s...");
-        setTimeout(() => window.location.reload(), 3000);
-    };
-
 
     console.log('🎉 Modern IoT Robot Controller fully loaded and ready!');
 
