@@ -8,6 +8,10 @@
     <link rel="stylesheet" href="{% static 'robot/css/style.css' %}?v=2031">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+    <script src="https://code.highcharts.com/modules/exporting.js"></script>
+    <script src="https://code.highcharts.com/modules/export-data.js"></script>
+    <script src="https://code.highcharts.com/modules/accessibility.js"></script>
 </head>
 <body>
     <!-- Dashboard Page -->
@@ -139,7 +143,7 @@
                         <div class="tab-panel active" id="battery-panel">
                             <h3>Battery Level Over Time</h3>
                             <div class="chart-container" style="position: relative; height: 400px;">
-                                <canvas id="batteryChart"></canvas>
+                                <div id="batteryChart" style="width:100%; height:100%;"></div>
                             </div>
                         </div>
 
@@ -182,6 +186,202 @@
         </div>
     </div>
 
-    <script src="{% static 'robot/js/app.js' %}?v=3"></script>
+    <script src="{% static 'robot/js/app.js' %}?v=6"></script>
+    
+    <!-- Battery Chart Initialization -->
+    <script>
+    (async function initBatteryChart() {
+        console.log("🔋 Initializing Battery Chart...");
+        
+        // Wait for DOM to be ready
+        const chartContainer = document.getElementById('batteryChart');
+        if (!chartContainer) {
+            console.error("❌ batteryChart container not found!");
+            return;
+        }
+        
+        // Check if Highcharts is loaded
+        if (typeof Highcharts === 'undefined') {
+            console.error("❌ Highcharts not loaded!");
+            chartContainer.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100%;color:#ff6b6b;font-size:16px;">Highcharts library not loaded. Check internet connection.</div>';
+            return;
+        }
+        
+        console.log("✅ Highcharts found, fetching data...");
+        
+        // Fetch battery history data
+        let data = [];
+        try {
+            const response = await fetch('/api/battery-history/');
+            if (response.ok) {
+                data = await response.json();
+                console.log(`✅ Fetched ${data.length} battery data points`);
+            } else {
+                throw new Error(`HTTP ${response.status}`);
+            }
+        } catch (e) {
+            console.warn("⚠️ Could not fetch battery history, using sample data:", e.message);
+            // Generate sample data for demonstration
+            const now = Date.now();
+            data = [];
+            for (let i = 100; i >= 0; i--) {
+                const time = now - (i * 60000); // 1 minute intervals
+                const battery = 100 - (i * 0.25) + (Math.random() * 5 - 2.5); // Gradual decrease with noise
+                data.push([time, Math.max(0, Math.min(100, battery))]);
+            }
+        }
+        
+        // If still no data, create minimal sample
+        if (!data || data.length === 0) {
+            const now = Date.now();
+            data = [[now - 3600000, 95], [now - 1800000, 88], [now, 85]];
+        }
+        
+        console.log("📊 Creating Highcharts chart...");
+        
+        // Create the chart
+        try {
+            Highcharts.chart('batteryChart', {
+                chart: {
+                    zooming: {
+                        type: 'x'
+                    },
+                    backgroundColor: 'transparent',
+                    style: {
+                        fontFamily: 'Inter, system-ui, sans-serif'
+                    },
+                    animation: {
+                        duration: 1500
+                    }
+                },
+                title: {
+                    text: 'Robot Battery Level Over Time',
+                    style: {
+                        color: '#333',
+                        fontSize: '18px',
+                        fontWeight: '600'
+                    }
+                },
+                subtitle: {
+                    text: document.ontouchstart === undefined ?
+                        'Click and drag in the plot area to zoom in' :
+                        'Pinch the chart to zoom in',
+                    style: {
+                        color: '#666'
+                    }
+                },
+                xAxis: {
+                    type: 'datetime',
+                    labels: {
+                        style: { color: '#666' }
+                    },
+                    lineColor: '#ddd',
+                    tickColor: '#ddd'
+                },
+                yAxis: {
+                    title: {
+                        text: 'Battery Level (%)',
+                        style: { color: '#666' }
+                    },
+                    min: 0,
+                    max: 100,
+                    labels: {
+                        style: { color: '#666' },
+                        format: '{value}%'
+                    },
+                    gridLineColor: 'rgba(0,0,0,0.1)'
+                },
+                legend: {
+                    enabled: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    borderColor: '#ccc',
+                    borderRadius: 8,
+                    shadow: true,
+                    style: {
+                        color: '#333'
+                    },
+                    xDateFormat: '%Y-%m-%d %H:%M:%S',
+                    valueSuffix: '%'
+                },
+                plotOptions: {
+                    area: {
+                        fillColor: {
+                            linearGradient: {
+                                x1: 0,
+                                y1: 0,
+                                x2: 0,
+                                y2: 1
+                            },
+                            stops: [
+                                [0, 'rgba(199, 113, 243, 0.6)'],
+                                [0.5, 'rgba(76, 175, 254, 0.3)'],
+                                [1, 'rgba(76, 175, 254, 0.05)']
+                            ]
+                        },
+                        marker: {
+                            enabled: false,
+                            radius: 2,
+                            states: {
+                                hover: {
+                                    enabled: true,
+                                    radius: 5
+                                }
+                            }
+                        },
+                        lineWidth: 2,
+                        lineColor: {
+                            linearGradient: { x1: 0, y1: 0, x2: 1, y2: 0 },
+                            stops: [
+                                [0, 'rgb(199, 113, 243)'],
+                                [1, 'rgb(76, 175, 254)']
+                            ]
+                        },
+                        states: {
+                            hover: {
+                                lineWidth: 2
+                            }
+                        },
+                        threshold: null
+                    }
+                },
+                series: [{
+                    type: 'area',
+                    name: 'Battery Level',
+                    data: data,
+                    animation: {
+                        duration: 2000,
+                        easing: 'easeOutBounce'
+                    }
+                }],
+                credits: {
+                    enabled: false
+                },
+                responsive: {
+                    rules: [{
+                        condition: {
+                            maxWidth: 500
+                        },
+                        chartOptions: {
+                            title: {
+                                style: { fontSize: '14px' }
+                            },
+                            subtitle: {
+                                style: { fontSize: '10px' }
+                            }
+                        }
+                    }]
+                }
+            });
+            
+            console.log("✅ Battery chart created successfully!");
+            
+        } catch (err) {
+            console.error("❌ Error creating chart:", err);
+            chartContainer.innerHTML = `<div style="color:#ff6b6b;padding:20px;text-align:center;">Error creating chart: ${err.message}</div>`;
+        }
+    })();
+    </script>
 </body>
 </html>

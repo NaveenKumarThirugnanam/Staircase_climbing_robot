@@ -61,9 +61,7 @@ function initSocket() {
     socket.onmessage = (event) => {
         try {
             const data = JSON.parse(event.data);
-            console.log("📨 WebSocket message:", data);
-            
-            // Handle connection status messages (robot or dashboard)
+                       // Handle connection status messages (robot or dashboard)
             if (data.status === "connected") {
                 updateConnectionStatus(true);
                 if (data.device_type === "robot" && data.device_id) {
@@ -140,7 +138,7 @@ function displayVideoFrame(data) {
             console.log("🎥 Video frame displayed in canvas");
         }
     } catch (err) {
-        console.error("❌ Error displaying video frame:", err);
+        console.error("Error displaying video frame:", err);
     }
 }
 
@@ -157,6 +155,16 @@ function updateTelemetryDisplay(data) {
             // Dashboard cards
             const batteryValue = document.getElementById("batteryValue");
             if (batteryValue) batteryValue.textContent = `${Math.round(data.battery)}%`;
+
+            // Update Highcharts
+            if (appState.batteryChart && appState.batteryChart.series) {
+                const series = appState.batteryChart.series[0];
+                const x = (new Date()).getTime(); // current time
+                const y = data.battery;
+                // Add point, redraw, shift if > 100 points
+                const shift = series.data.length > 100;
+                series.addPoint([x, y], true, shift);
+            }
         }
         
         if (data.signal !== undefined) {
@@ -190,12 +198,12 @@ function updateTelemetryDisplay(data) {
 // Simple throttling for control messages (per type)
 const controlSendState = {
     lastSentAt: {},
-    minIntervalMs: 50 // max ~20 msgs/sec per type
+    minIntervalMs: 100
 };
 
 function sendControlMessage(payload) {
     if (!socket || socket.readyState !== 1) {
-        console.warn("WS not open — cannot send control message", payload);
+        console.warn("WS not open  cannot send control message", payload);
         return;
     }
 
@@ -325,6 +333,7 @@ document.addEventListener('DOMContentLoaded', function () {
             profileDropdown: document.getElementById('profileDropdown'),
             logoutBtn: document.getElementById('logoutBtn'),
             dashboardNavBtn: document.getElementById('dashboardNavBtn'),
+            controllerNavBtn: document.getElementById('controllerNavBtn'),
             timestamp: document.getElementById('timestamp'),
             signalStrength: document.getElementById('signalStrength'),
             batteryLevel: document.getElementById('batteryLevel'),
@@ -380,6 +389,16 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // Ensure WebSocket is ready now that DOM is loaded
+    initSocket();
+
+    // Fallback: if socket already open (e.g., quick reload), mark connected
+    setTimeout(() => {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            updateConnectionStatus(true);
+        }
+    }, 500);
+
     function sendBrightnessToRobot(value) {
         console.log('Brightness set to:', value);
         sendControlMessage({
@@ -392,16 +411,6 @@ document.addEventListener('DOMContentLoaded', function () {
     // Initialize the application
     function init() {
         console.log('🚀 Initializing Modern IoT Robot Controller...');
-
-        // Ensure WebSocket is ready now that DOM elements exist
-    initSocket();
-
-    // Fallback: if socket already open (e.g., quick reload), mark connected
-    setTimeout(() => {
-        if (socket && socket.readyState === WebSocket.OPEN) {
-            updateConnectionStatus(true);
-        }
-    }, 500);
 
         // Read preferred view from URL (?view=dashboard)
         const params = new URLSearchParams(window.location.search);
@@ -1411,86 +1420,121 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Enhanced battery chart
-    function initializeEnhancedBatteryChart() {
-        const chartCanvas = document.getElementById('batteryChart');
-        if (!chartCanvas) return;
-
-        const ctx = chartCanvas.getContext('2d');
-
-        // Destroy existing chart if it exists
-        if (appState.batteryChart) {
-            appState.batteryChart.destroy();
+    async function initializeEnhancedBatteryChart() {
+        console.log("📊 Initializing Highcharts battery chart...");
+        const chartContainer = document.getElementById('batteryChart');
+        if (!chartContainer) {
+            console.error("❌ Battery chart container not found!");
+            return;
         }
 
-        appState.batteryChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: batteryChartData.map(d => d.time),
-                datasets: [{
-                    label: 'Battery Level',
-                    data: batteryChartData.map(d => d.battery),
-                    borderColor: '#1FB8CD',
-                    backgroundColor: 'rgba(31, 184, 205, 0.2)',
-                    fill: true,
-                    tension: 0.4,
-                    pointBackgroundColor: '#1FB8CD',
-                    pointBorderColor: '#ffffff',
-                    pointBorderWidth: 3,
-                    pointRadius: 5,
-                    pointHoverRadius: 8,
-                    borderWidth: 3
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                },
-                scales: {
-                    x: {
-                        grid: {
-                            color: 'rgba(0, 0, 0, 0.1)',
-                            drawBorder: false
-                        },
-                        ticks: {
-                            color: '#6b7280',
-                            font: {
-                                family: 'Inter, system-ui, sans-serif'
-                            }
-                        }
-                    },
-                    y: {
-                        min: 0,
-                        max: 100,
-                        grid: {
-                            color: 'rgba(0, 0, 0, 0.1)',
-                            drawBorder: false
-                        },
-                        ticks: {
-                            color: '#6b7280',
-                            font: {
-                                family: 'Inter, system-ui, sans-serif'
-                            },
-                            callback: function (value) {
-                                return value + '%';
-                            }
-                        }
-                    }
-                },
-                elements: {
-                    point: {
-                        hoverBackgroundColor: '#1FB8CD'
-                    }
-                },
-                animation: {
-                    duration: 2000,
-                    easing: 'easeInOutCubic'
-                }
+        if (typeof Highcharts === 'undefined') {
+            console.error("❌ Highcharts library not loaded!");
+            chartContainer.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100%;color:red;text-align:center;">Highcharts library not loaded.<br>Please check internet connection.</div>';
+            return;
+        }
+
+        // Fetch data from backend
+        let data = [];
+        try {
+            console.log("Fetching battery history...");
+            const response = await fetch('/api/battery-history/');
+            if (response.ok) {
+                data = await response.json();
+                console.log(`✅ Fetched ${data.length} data points`);
+            } else {
+                console.error("❌ Failed to fetch battery history:", response.status);
+                throw new Error("Fetch failed");
             }
-        });
+        } catch (e) {
+            console.warn("⚠️ Using fallback data for chart:", e);
+             // Fallback
+             const now = new Date();
+             data = batteryChartData.map((d, i) => {
+                 const timeParts = d.time.split(':');
+                 const date = new Date(now);
+                 date.setHours(parseInt(timeParts[0]), parseInt(timeParts[1]), 0, 0);
+                 return [date.getTime(), d.battery];
+             });
+        }
+
+        if (!data || data.length === 0) {
+             console.warn("⚠️ No data available, using empty dataset");
+             data = [];
+        }
+
+        try {
+            appState.batteryChart = Highcharts.chart('batteryChart', {
+                chart: {
+                    zooming: {
+                        type: 'x'
+                    },
+                    backgroundColor: 'transparent'
+                },
+                title: {
+                    text: 'Battery Level Over Time',
+                    style: { color: '#333' }
+                },
+                subtitle: {
+                    text: document.ontouchstart === undefined ?
+                        'Click and drag in the plot area to zoom in' :
+                        'Pinch the chart to zoom in'
+                },
+                xAxis: {
+                    type: 'datetime',
+                    labels: { style: { color: '#666' } }
+                },
+                yAxis: {
+                    title: {
+                        text: 'Battery Level (%)'
+                    },
+                    min: 0,
+                    max: 100,
+                    labels: { style: { color: '#666' } }
+                },
+                legend: {
+                    enabled: false
+                },
+                plotOptions: {
+                    area: {
+                        marker: {
+                            radius: 2
+                        },
+                        lineWidth: 1,
+                        color: {
+                            linearGradient: {
+                                x1: 0,
+                                y1: 0,
+                                x2: 0,
+                                y2: 1
+                            },
+                            stops: [
+                                [0, 'rgb(199, 113, 243)'],
+                                [0.7, 'rgb(76, 175, 254)']
+                            ]
+                        },
+                        states: {
+                            hover: {
+                                lineWidth: 1
+                            }
+                        },
+                        threshold: null
+                    }
+                },
+                series: [{
+                    type: 'area',
+                    name: 'Battery Level',
+                    data: data
+                }],
+                credits: {
+                    enabled: false
+                }
+            });
+            console.log("✅ Highcharts initialized successfully");
+        } catch (err) {
+            console.error("❌ Error creating Highcharts:", err);
+            chartContainer.innerHTML = `<div style="color:red;padding:20px;">Error creating chart: ${err.message}</div>`;
+        }
     }
 
     // Enhanced tab switching
@@ -2067,6 +2111,4 @@ document.addEventListener('DOMContentLoaded', function () {
     init();
 
     console.log('🎉 Modern IoT Robot Controller fully loaded and ready!');
-
-
 });

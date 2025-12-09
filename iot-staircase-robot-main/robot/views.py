@@ -4,6 +4,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.urls import reverse
 from django.contrib.auth.models import User
+from django.http import JsonResponse
+from .models import TelemetryData
 
 def home_redirect(request):
     if request.user.is_authenticated:
@@ -138,3 +140,19 @@ def settings_view(request):
             messages.info(request, 'No changes to update.')
 
     return render(request, 'robot/settings.html', {'user': request.user})
+
+@login_required(login_url='login')
+def battery_history(request):
+    # Get last 100 points ordered by time
+    data = TelemetryData.objects.order_by('-timestamp')[:100]
+    # Reverse to have chronological order
+    data = reversed(data)
+    
+    history = []
+    for entry in data:
+        # Highcharts expects timestamp in milliseconds
+        timestamp = entry.timestamp.timestamp() * 1000
+        history.append([timestamp, entry.battery])
+        
+    return JsonResponse(list(history), safe=False)
+

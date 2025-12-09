@@ -54,6 +54,7 @@ urlpatterns = [
     path('robot/loading/', views.robot_loading, name='robot_loading'),
     path('robot/controller/', views.robot_controller, name='robot_controller'),
     path('robot/dashboard/', views.robot_dashboard, name='robot_dashboard'),
+    path('api/battery-history/', views.battery_history, name='battery_history'),
     # Backward-compatible route
     path('robot/', views.robot_controller, name='robot'),
 ]
