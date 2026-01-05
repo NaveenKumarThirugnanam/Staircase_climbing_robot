@@ -28,7 +28,7 @@ DEFAULT_FROM_EMAIL = IoT Robot <your_email>
 ### 1. Start the ASGI server
 ```bash
 python -m daphne -p 8000 staircasebot.asgi:application
-
+```
 
 ## 📋 Project Overview
 
