@@ -1,5 +1,11 @@
 # 🤖 IoT Staircase Climbing Robot System
 
+## necessary things -
+## redis
+## commands -
+## python -m daphne -p 8000 staircasebot.asgi:application - to run the server
+## python robot_client.py - sample client
+
 ## 📋 Project Overview
 
 This is a **complete IoT robotics system** that allows remote control of a staircase-climbing robot through a modern web dashboard. The system uses **real-time WebSocket communication** for instant control and monitoring.
