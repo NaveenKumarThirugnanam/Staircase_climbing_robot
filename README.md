@@ -28,6 +28,28 @@ which is an unoffical version of redis
 
 ## Commands
 
+```bash
+# 1. Install dependencies
+pip install -r requirements.txt
+
+# 2. Set up .env file with DB config
+
+# 3. Run migrations
+python manage.py migrate
+
+# 4. Create superuser (optional)
+python manage.py createsuperuser
+
+# 5. Start Redis (separate terminal)
+# for windows you can use the unofficial redis version which is given below
+
+# 6. Start Django server
+python -m daphne -p 8000 staircasebot.asgi:application
+
+# 7. Start robot client (separate terminal)
+python robot_client.py robot_01
+```
+
 ### 1. Start the ASGI server
 This command is to run the websocket server.
 ```bash
