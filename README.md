@@ -22,12 +22,19 @@ DEFAULT_FROM_EMAIL = IoT Robot <your_email>
 
 ## Prerequisites
 - Redis
+while running the client run the redis in the background
 
 ## Commands
 
 ### 1. Start the ASGI server
+This command is to run the websocket server.
 ```bash
 python -m daphne -p 8000 staircasebot.asgi:application
+```
+
+This command is to run the websocket client for now here we have only one client 1
+```bash
+python robot_client.py
 ```
 
 ## 📋 Project Overview
