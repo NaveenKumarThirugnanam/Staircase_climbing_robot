@@ -92,12 +92,12 @@ CHANNEL_LAYERS = {
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'staircase_robot',
-        'USER': 'robot_user',
-        'PASSWORD': 'robot123',
-        'HOST': 'localhost',
-        'PORT': '5432',
+        'ENGINE': os.environ.get('DB_ENGINE', 'django.db.backends.postgresql'),
+        'NAME': os.environ.get('DB_NAME', 'staircase_robot'),
+        'USER': os.environ.get('DB_USER', 'robot_user'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', 'robot123'),
+        'HOST': os.environ.get('DB_HOST', 'localhost'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
     }
 }
 

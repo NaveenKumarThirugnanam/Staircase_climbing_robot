@@ -1,5 +1,25 @@
 # 🤖 IoT Staircase Climbing Robot System
 
+## Database config (.env)
+- Database settings now load from environment variables in [iot-staircase-robot-main/.env](iot-staircase-robot-main/.env); defaults remain aligned with the previous local values.
+- Make sure these keys exist before running migrations or starting the server:
+```
+DB_ENGINE=django.db.backends.postgresql
+DB_NAME=staircase_robot
+DB_USER=robot_user
+DB_PASSWORD=robot123
+DB_HOST=localhost
+DB_PORT=5432
+
+EMAIL_HOST = smtp.gmail.com
+EMAIL_PORT = 587
+EMAIL_USE_TLS = true
+EMAIL_HOST_USER = your_email
+EMAIL_HOST_PASSWORD = your email_app_password
+DEFAULT_FROM_EMAIL = IoT Robot <your_email>
+
+```
+
 ## necessary things -
 ## redis
 ## commands -
