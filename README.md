@@ -23,6 +23,8 @@ DEFAULT_FROM_EMAIL = IoT Robot <your_email>
 ## Prerequisites
 - Redis
 while running the client run the redis server in the background
+- for windows use this to download the redis https://github.com/tporadowski/redis/releases
+which is an unoffical version of redis
 
 ## Commands
 
